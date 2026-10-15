@@ -573,7 +573,9 @@
     const designInputFields = [
       ...Array.from(designInputRoot.querySelectorAll('input[id], select[id], textarea[id]')),
       document.getElementById('earthquakeMw'),
-      document.getElementById('displacementProbability')
+      document.getElementById('displacementProbability'),
+      // This option is located in the results panel but must be independent per tab.
+      document.getElementById('considerPermanentDisplacement')
     ].filter(Boolean);
     const loadCaseInputStates = {};
     let loadCaseStatesReady = false;
@@ -595,6 +597,9 @@
             const saved = state[el.id];
             el.value = typeof saved === 'object' && saved !== null ? saved.value : saved;
           }
+        } else if (el.id === 'considerPermanentDisplacement') {
+          // Older saved projects have no per-case setting; default to unchecked.
+          el.checked = false;
         }
       });
       updateGroundwaterInput();
