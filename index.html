@@ -107,7 +107,18 @@
  .reference-page { width:100% !important; height:270mm !important; max-width:none !important; margin:0 !important; display:flex; align-items:flex-start; justify-content:center; break-inside:avoid !important; page-break-inside:avoid !important; break-after:page !important; page-break-after:always !important; }
  .reference-page img { width:auto !important; max-width:100% !important; max-height:270mm !important; object-fit:contain !important; }
 }
-</style></head> 
+</style>
+<style>
+/* Compact Jibson chart in printed report, intended to follow page-3 results. */
+@media print {
+  #displacement-sketch-card { margin: 3mm 0 0 !important; padding: 0 !important; break-inside: avoid !important; page-break-inside: avoid !important; }
+  #displacement-sketch-card h2 { font-size: 10pt !important; margin: 0 0 1mm !important; }
+  #displacement-sketch-card > p { font-size: 7pt !important; line-height: 1.1 !important; margin: 0 0 1mm !important; }
+  #displacement-sketch { display: block !important; width: 180mm !important; max-width: 100% !important; height: auto !important; max-height: 115mm !important; margin: 0 auto !important; }
+  #displacement-plot-caption { font-size: 7pt !important; line-height: 1.1 !important; margin: 1mm 0 0 !important; }
+}
+</style>
+</head> 
 <body> 
 
   <!-- Print Control Bar --> 
