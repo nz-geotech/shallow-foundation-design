@@ -220,7 +220,11 @@
   <div class="card"> 
      
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px 30px;"> 
-      <div class="form-group" style="margin-bottom: 0;"><label style="width: 35%;">Project Name:</label><input type="text" id="project_name" value="Sajjad Anwar" style="width: 55%;"></div> 
+      <div class="form-group" style="margin-bottom: 0;"><label style="width: 35%;">Project Name:</label><input type="text" id="project_name" value="" style="width: 55%;"></div>
+       <div class="form-group" style="margin-bottom: 0;"><label style="width: 35%;">Company Name:</label><input type="text" id="company_name" value="" style="width: 55%;"></div>
+       <div class="form-group" style="margin-bottom: 0;"><label style="width: 35%;">Client Name:</label><input type="text" id="client_name" style="width: 55%;"></div>
+       <div class="form-group" style="margin-bottom: 0;"><label style="width: 35%;">Location:</label><input type="text" id="project_location" style="width: 55%;"></div>
+       <div class="form-group" style="margin-bottom: 0;"><label style="width: 35%;">Structure Type:</label><input type="text" id="structure_type" style="width: 55%;"></div> 
       <div class="form-group" style="margin-bottom: 0;"><label style="width: 35%;">Date:</label><input type="date" id="load_case" value="" aria-label="Select design date"></div> 
       <div class="form-group" style="margin-bottom: 0;"><label style="width: 35%;">Done By:</label><input type="text" id="done_by" value="Sajjad Anwar"></div> 
       <div class="form-group" style="margin-bottom: 0;"><label style="width: 35%;">Checked By:</label><input type="text" id="checked_by" value="Sajjad Anwar"></div> 
@@ -290,7 +294,8 @@
         <div class="form-group" id="E-row"><label>Young's Modulus E (MPa):</label><input type="number" id="E" value="0" step="1" oninput="calculate()"></div> 
         <div class="form-group" id="v-row"><label>Poisson's ratio v (-):</label><input type="number" id="v" value="0" step="1" oninput="calculate()"></div> 
         <div class="form-group" id="base-friction-standard-row"><label id="base-friction-label">Base friction δ (°):</label><input type="number" id="delta" value="25" step="1" oninput="calculate()"></div> 
-        <div class="form-group" id="static-uls-load-row"><label>Factored Structure weight Ws (kN):</label><input type="number" id="V_star" value="1200" step="50" oninput="calculate()"></div> 
+        <div class="form-group" id="static-uls-load-row"><label>Factored Structure weight Ws (kN):</label><input type="number" id="V_star" value="1200" step="50" oninput="calculate()"></div>
+        <div class="form-group" id="dead-load-factor-row"><label>Load Factor Φ - Dead Load (-):</label><input type="number" id="dead_load_factor" value="1.0" min="0" step="0.05" oninput="calculate()"></div> 
         <div class="form-group" id="static-sls-load-row"><label>Unfactored Structure weight Wss (kN):</label><input type="number" id="V" value="1200" step="50" oninput="calculate()"></div>
         <div class="form-group seismic-load-row" id="sls1-load-row" style="display:none"><label>Structure weight Ws (kN):</label><input type="number" id="V_sls1" value="1200" step="50" oninput="calculate()"></div>
         <div class="form-group seismic-load-row" id="sls2-load-row" style="display:none"><label>Structure weight Ws (kN):</label><input type="number" id="V_sls2" value="1200" step="50" oninput="calculate()"></div>
@@ -317,7 +322,7 @@
       </div>
       <p style="margin:4px 0 0; font-size:0.82rem; color:#64748b;">The base interface value is calculated from the hardfill strength and interface reduction factor. Confirm the adopted parameters and applicability for the project.</p>
     </div>
-    <p style="margin:8px 0; font-size:0.88rem; color:#52606d;">Design considers vertical load V and moment M to act at the centre of the footing (B/2). Entered structure weights exclude footing self-weight Wc. Design axial loads include Wc.</p>
+    <p style="margin:8px 0; font-size:0.88rem; color:#52606d;">Design considers vertical load V and moment M to act at the centre of the footing (B/2). Entered structure weights exclude footing self-weight Wc. Design axial loads include Wc. For ULS, the footing weight is multiplied by the dead-load factor Φ; for SLS, Wc remains unfactored.</p>
   </div>
 
   <!-- Foundation Sketch --> 
@@ -710,7 +715,7 @@
     function saveInputFile() {
       loadCaseInputStates[activeLoadCase] = captureDesignInputs();
       const metadata = {};
-      ['project_name', 'load_case', 'done_by', 'checked_by'].forEach(id => {
+      ['project_name', 'company_name', 'client_name', 'project_location', 'structure_type', 'load_case', 'done_by', 'checked_by'].forEach(id => {
         const el = document.getElementById(id);
         if (el) metadata[id] = el.value;
       });
@@ -753,7 +758,7 @@
             }
           });
           if (payload.metadata && typeof payload.metadata === 'object') {
-            ['project_name', 'load_case', 'done_by', 'checked_by'].forEach(id => {
+            ['project_name', 'company_name', 'client_name', 'project_location', 'structure_type', 'load_case', 'done_by', 'checked_by'].forEach(id => {
               const el = document.getElementById(id);
               if (el && Object.prototype.hasOwnProperty.call(payload.metadata, id)) el.value = payload.metadata[id] ?? '';
             });
@@ -979,9 +984,14 @@
       const footingPlanArea = isCircularFooting ? Math.PI * B * B / 4 : B * L;
       const Wc = footingPlanArea * footingThickness * concreteUnitWeight;
       const Ws = inputAxial;
-      const V_star = Ws + Wc;
+      const deadLoadFactorInput = parseFloat(document.getElementById('dead_load_factor').value);
+       const deadLoadFactor = Number.isFinite(deadLoadFactorInput) && deadLoadFactorInput >= 0 ? deadLoadFactorInput : 1;
+       // Apply the dead-load factor to footing self-weight for ULS only.
+       const Wc_design = (activeLoadCase === 'static' || activeLoadCase === 'seismic-uls') ? deadLoadFactor * Wc : Wc;
+       document.getElementById('dead-load-factor-row').style.display = (activeLoadCase === 'static' || activeLoadCase === 'seismic-uls') ? '' : 'none';
+       const V_star = Ws + Wc_design;
       const staticV = parseFloat(document.getElementById('V').value);
-      const V_sls = (Number.isFinite(staticV) ? staticV : 0) + Wc;
+      const V_sls = (Number.isFinite(staticV) ? staticV : 0) + Wc; // SLS: Wss + unfactored Wc
       const V = activeLoadCase === 'static' ? V_sls : V_star;
       // Shared lateral load and moment inputs apply to the currently selected load case.
       const H_star = parseFloat(document.getElementById('H_star').value) || 0;
