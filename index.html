@@ -300,6 +300,8 @@
         <div class="form-group seismic-load-row" id="sls1-load-row" style="display:none"><label>Structure weight Ws (kN):</label><input type="number" id="V_sls1" value="1200" step="50" oninput="calculate()"></div>
         <div class="form-group seismic-load-row" id="sls2-load-row" style="display:none"><label>Structure weight Ws (kN):</label><input type="number" id="V_sls2" value="1200" step="50" oninput="calculate()"></div>
         <div class="form-group seismic-load-row" id="seismic-uls-load-row" style="display:none"><label>Structure weight Ws (kN):</label><input type="number" id="V_seismic_uls" value="1200" step="50" oninput="calculate()"></div>
+        <div class="form-group"><label>Vertical Load Application X (m) — from left B edge:</label><input type="number" id="vertical_load_x" step="0.01" min="0" placeholder="Default B/2" oninput="calculate()"></div>
+        <div class="form-group"><label>Vertical Load Application Y (m) — from near L edge:</label><input type="number" id="vertical_load_y" step="0.01" min="0" placeholder="Default L/2" oninput="calculate()"></div>
         <div class="form-group horizontal-moment-row" id="h-load-row"><label>Lateral load H* (kN):</label><input type="number" id="H_star" value="0" step="10" oninput="calculate()"></div>
         <div class="form-group horizontal-moment-row" id="mx-load-row"><label>Moment Mx* (kNm):</label><input type="number" id="Mx_star" value="0" step="10" oninput="calculate()"></div>
         <div class="form-group horizontal-moment-row" id="my-load-row"><label>Moment My* (kNm):</label><input type="number" id="My_star" value="0" step="10" oninput="calculate()"></div> 
@@ -322,7 +324,7 @@
       </div>
       <p style="margin:4px 0 0; font-size:0.82rem; color:#64748b;">The base interface value is calculated from the hardfill strength and interface reduction factor. Confirm the adopted parameters and applicability for the project.</p>
     </div>
-    <p style="margin:8px 0; font-size:0.88rem; color:#52606d;">Design considers vertical load V and moment M to act at the centre of the footing (B/2). Entered structure weights exclude footing self-weight Wc. Design axial loads include Wc. For ULS, the footing weight is multiplied by the dead-load factor Φ; for SLS, Wc remains unfactored.</p>
+    <p style="margin:8px 0; font-size:0.88rem; color:#52606d;">Vertical load position defaults to X = B/2 and Y = L/2 when left blank. For rectangular foundations, both positive and negative moment directions are assessed and the minimum effective dimensions are adopted. Enter X and Y for the combined structure-load resultant (excluding separately calculated footing self-weight). Entered structure weights exclude footing self-weight Wc. Design axial loads include Wc. For ULS, the footing weight is multiplied by the dead-load factor Φ; for SLS, Wc remains unfactored.</p>
   </div>
 
   <!-- Foundation Sketch --> 
@@ -490,6 +492,11 @@
       <div> 
         <div class="form-group"><label>Eccentricity along B eb (m):</label><span id="res_eb" class="result-val">-</span></div> 
         <div class="form-group"><label>Eccentricity along L el (m):</label><span id="res_el" class="result-val">-</span></div> 
+          <div class="form-group"><label>Resultant X, governing (m):</label><span id="res_resultant_x" class="result-val">-</span></div>
+          <div class="form-group"><label>Resultant Y, governing (m):</label><span id="res_resultant_y" class="result-val">-</span></div>
+          <div class="form-group"><label>B′ for +M / −M (m):</label><span id="res_both_b" class="result-val">-</span></div>
+          <div class="form-group"><label>L′ for +M / −M (m):</label><span id="res_both_l" class="result-val">-</span></div>
+          <div id="resultant-footprint-warning" style="display:none;padding:8px;color:#991b1b;background:#fee2e2;border:1px solid #ef4444;margin:8px 0;font-weight:600;"></div>
         <div class="form-group"><label>Effective Width B' (m):</label><span id="res_B_prime" class="result-val">-</span></div> 
         <div class="form-group"><label>Effective Length L' (m):</label><span id="res_L_prime" class="result-val">-</span></div>
         <div class="form-group"><label>Effective Area A' (m²):</label><span id="res_A_prime" class="result-val">-</span></div>
@@ -1012,31 +1019,58 @@
       const concreteEffectiveUnitWeight = gammaConcrete - gamma_w * (concreteSubmergedThickness / Math.max(0.0001, parseFloat(document.getElementById('t').value) || 0)); 
       const gamma_sub = gamma - gamma_w; 
       
+      // X and Y describe the STRUCTURE load application point. The separately
+      // computed footing weight Wc acts at the footing centroid. Resolve the
+      // combined axial-load centroid before adding +/- applied moment effects.
+      const rawX = document.getElementById('vertical_load_x').value.trim();
+      const rawY = document.getElementById('vertical_load_y').value.trim();
+      const loadX = rawX === '' ? B / 2 : Number(rawX);
+      const loadY = rawY === '' ? L / 2 : Number(rawY);
       const safeVForEccentricity = Math.max(Math.abs(V_star), 1e-9);
-      const eb = Math.abs(Mx_star) / safeVForEccentricity; 
-      const el = Math.abs(My_star) / safeVForEccentricity; 
-      
+      const xBase = (Ws * loadX + Wc_design * B / 2) / safeVForEccentricity;
+      const yBase = (Ws * loadY + Wc_design * L / 2) / safeVForEccentricity;
+      // Portal convention: Mx displaces resultant along B; My along L.
+      const xPlus = xBase + Math.abs(Mx_star) / safeVForEccentricity;
+      const xMinus = xBase - Math.abs(Mx_star) / safeVForEccentricity;
+      const yPlus = yBase + Math.abs(My_star) / safeVForEccentricity;
+      const yMinus = yBase - Math.abs(My_star) / safeVForEccentricity;
+      const eff = (coordinate, dimension) => 2 * Math.min(coordinate, dimension - coordinate);
+      const bPlus = eff(xPlus, B), bMinus = eff(xMinus, B);
+      const lPlus = eff(yPlus, L), lMinus = eff(yMinus, L);
+      const xGoverning = bPlus <= bMinus ? xPlus : xMinus;
+      const yGoverning = lPlus <= lMinus ? yPlus : yMinus;
+      const outsideFootprint = !Number.isFinite(loadX) || !Number.isFinite(loadY) ||
+        loadX < 0 || loadX > B || loadY < 0 || loadY > L ||
+        Math.min(bPlus, bMinus) <= 0 || Math.min(lPlus, lMinus) <= 0;
+      // eb/el are NET governing eccentricities, including off-centre loads.
+      const eb = Math.abs(xGoverning - B / 2);
+      const el = Math.abs(yGoverning - L / 2);
       let B_prime, L_prime;
       if (isCircularFooting) {
-        // Circular footing: use the circular-segment effective area and convert
-        // it to equivalent rectangular dimensions B′ and L′ (B′L′ = A′).
-        // B is the entered diameter; resultant eccentricity combines both axes.
+        // Existing circular-segment method, now with worst-case radial eccentricity.
         const r = Math.max(B / 2, 0.001);
         const ec = Math.hypot(eb, el);
-        const xi = Math.max(0, Math.min(0.999999, ec / r)); // Z = r, so ξ = (ec + Z - r)/r = ec/r
+        const xi = Math.max(0, Math.min(0.999999, ec / r));
         const circularArea = 2 * r * r * (Math.acos(xi) - xi * Math.sqrt(Math.max(0, 1 - xi * xi)));
         const equivalentSide = Math.sqrt(Math.max(circularArea, 0.0001));
-        B_prime = Math.pow((1 - xi) / (1 + xi), 0.25) * equivalentSide;
-        L_prime = Math.pow((1 + xi) / (1 - xi), 0.25) * equivalentSide;
-        B_prime = Math.max(0.01, B_prime);
-        L_prime = Math.max(0.01, L_prime);
+        B_prime = Math.max(0.01, Math.pow((1 - xi) / (1 + xi), 0.25) * equivalentSide);
+        L_prime = Math.max(0.01, Math.pow((1 + xi) / (1 - xi), 0.25) * equivalentSide);
       } else {
-        B_prime = B - (2 * eb);
-        L_prime = L - (2 * el);
-        if (B_prime < 0.1) B_prime = 0.1;
-        if (L_prime < 0.1) L_prime = 0.1;
+        // Minimum effective dimensions over both signs of each applied moment.
+        // The 0.1 m legacy numerical floor is not a valid design width: flag invalid cases.
+        B_prime = Math.max(0.1, Math.min(bPlus, bMinus));
+        L_prime = Math.max(0.1, Math.min(lPlus, lMinus));
       }
-      
+      const resultantWarning = document.getElementById('resultant-footprint-warning');
+      const circularOutside = isCircularFooting && Math.hypot(eb, el) >= B / 2;
+      resultantWarning.style.display = outsideFootprint || circularOutside ? '' : 'none';
+      resultantWarning.textContent = outsideFootprint || circularOutside
+        ? 'INVALID CONTACT: At least one load/moment direction places the resultant outside the footing. Numerical minimum widths are used only to prevent calculation errors; bearing, overturning and rocking results must NOT be accepted as design checks.'
+        : '';
+      document.getElementById('res_resultant_x').textContent = xGoverning.toFixed(3);
+      document.getElementById('res_resultant_y').textContent = yGoverning.toFixed(3);
+      document.getElementById('res_both_b').textContent = bPlus.toFixed(3) + ' / ' + bMinus.toFixed(3);
+      document.getElementById('res_both_l').textContent = lPlus.toFixed(3) + ' / ' + lMinus.toFixed(3);
       const A_prime = B_prime * L_prime;
       // Recompute the equivalent soil properties for this load case's effective width.
       const caseGround=(typeof groundModelReady !== 'undefined' && groundModelReady)?weightedGround(B_prime):null;
@@ -1484,7 +1518,11 @@
       mainVLabel.setAttribute('x', mainFootCenter + 13);
       mainVLabel.setAttribute('y', 42);
       // Purple moment arrow is centred above the vertical V* load arrow.
-      document.getElementById('main-m-curve').setAttribute('d', `M${mainFootCenter-30} 38 C${mainFootCenter-30} 16 ${mainFootCenter+30} 16 ${mainFootCenter+30} 38`);
+      // Arrowhead follows the governing contact-pressure side (left or right).
+      const momentHeadRight = xGoverning >= B / 2;
+      document.getElementById('main-m-curve').setAttribute('d', momentHeadRight
+        ? `M${mainFootCenter-30} 38 C${mainFootCenter-30} 16 ${mainFootCenter+30} 16 ${mainFootCenter+30} 38`
+        : `M${mainFootCenter+30} 38 C${mainFootCenter+30} 16 ${mainFootCenter-30} 16 ${mainFootCenter-30} 38`);
       document.getElementById('sketchM').setAttribute('x', mainFootCenter);
       document.getElementById('sketchM').setAttribute('y', 10);
       document.getElementById('sketchM').setAttribute('text-anchor', 'middle');
@@ -1519,7 +1557,7 @@
 
       // The full footing is proportional to B. The pressure block and arrows use B′ and remain inside B.
       const visualBPrimeWidth = Math.max(8, Math.min(mainFootW, mainFootW * (Math.min(B_prime,B) / Math.max(B,0.001))));
-      const isMomentPositive = Mx_star >= 0;
+      const isMomentPositive = xGoverning >= B / 2;
       const visualStartX = isMomentPositive ? (mainFootRight - visualBPrimeWidth) : mainFootX;
       const pressBox = document.getElementById('press-rect');
       pressBox.setAttribute('x', visualStartX);
@@ -1652,7 +1690,9 @@
       document.getElementById('fc-h-arrow').setAttribute('y1',hY); document.getElementById('fc-h-arrow').setAttribute('y2',hY);
       document.getElementById('fc-h-label').setAttribute('x',(Math.max(8,fullLeftX-62)+fullLeftX-3)/2); document.getElementById('fc-h-label').setAttribute('text-anchor','middle'); document.getElementById('fc-h-label').setAttribute('y',Math.max(14, Math.min(hY-13, groundY-12)));
       document.getElementById('fc-h-label').textContent=`H* = ${H_star.toFixed(0)} kN`;
-      document.getElementById('fc-m-curve').setAttribute('d', `M${fullCenterX-28} 38 C${fullCenterX-28} 16 ${fullCenterX+28} 16 ${fullCenterX+28} 38`);
+      document.getElementById('fc-m-curve').setAttribute('d', momentHeadRight
+        ? `M${fullCenterX-28} 38 C${fullCenterX-28} 16 ${fullCenterX+28} 16 ${fullCenterX+28} 38`
+        : `M${fullCenterX+28} 38 C${fullCenterX+28} 16 ${fullCenterX-28} 16 ${fullCenterX-28} 38`);
       document.getElementById('fc-m-label').setAttribute('x',fullCenterX); document.getElementById('fc-m-label').setAttribute('y',12); document.getElementById('fc-m-label').setAttribute('text-anchor','middle');
       document.getElementById('fc-m-label').textContent=`Mx* = ${Mx_star.toFixed(0)} kNm`;
       // Slope geometry: distance De starts at the footing's right edge; angle arc follows omega.
