@@ -346,6 +346,8 @@
       <g id="foundation-soil-layers" pointer-events="none"></g> 
       <path d="M0 62H640" stroke="#8a7758" stroke-width="2"/>
       <!-- First-sketch footing, dimensions, slope, and load/moment actions -->
+      <line id="main-centerline" x1="320" y1="46" x2="320" y2="111" stroke="#475569" stroke-width="1.2" stroke-dasharray="5 4" visibility="hidden"/>
+      <text id="main-centerline-label" x="325" y="104" font-size="11" fill="#475569" visibility="hidden">CL</text>
       <rect id="main-footing" x="250" y="62" width="140" height="24" fill="#94a3b8" stroke="#334155" stroke-width="2"/>
       <line id="main-df-line" x1="405" y1="62" x2="405" y2="86" stroke="#2563eb" stroke-width="1.4"/>
       <path id="main-df-ticks" d="M399 62h12 M399 86h12" stroke="#2563eb" stroke-width="1.4"/>
@@ -447,6 +449,8 @@
       <line id="fc-hw-line" x1="550" y1="105" x2="550" y2="190" stroke="#d97706" stroke-width="1.5"/>
       <path id="fc-hw-ticks" d="" stroke="#d97706" stroke-width="1.5"/>
       <text id="fc-hw-label" x="562" y="150" font-size="12" fill="#92400e">Hw = — m</text>
+      <line id="fc-centerline" x1="380" y1="46" x2="380" y2="122" stroke="#475569" stroke-width="1.3" stroke-dasharray="5 4" visibility="hidden"/>
+      <text id="fc-centerline-label" x="385" y="118" font-size="12" fill="#475569" visibility="hidden">CL</text>
       <line id="fc-v-arrow" x1="380" y1="18" x2="380" y2="62" stroke="#2563eb" stroke-width="2.5" marker-end="url(#fArrow)"/>
       <text id="fc-v-label" x="392" y="29" font-size="12" fill="#2563eb" font-weight="600">V* = — kN</text>
       <line id="fc-h-arrow" x1="250" y1="48" x2="305" y2="48" stroke="#d97706" stroke-width="2.5" marker-end="url(#hArrow)"/>
@@ -1509,20 +1513,29 @@
       mainBDim.setAttribute('y1', mainBDimY); mainBDim.setAttribute('y2', mainBDimY);
       document.getElementById('main-b-ticks').setAttribute('d', `M${mainFootX} ${mainBDimY-6}v12 M${mainFootRight} ${mainBDimY-6}v12`);
       document.getElementById('sketchB').setAttribute('y', mainBDimY+17);
-      document.getElementById('main-v-arrow').setAttribute('x1', mainFootCenter);
-      document.getElementById('main-v-arrow').setAttribute('x2', mainFootCenter);
+      // Draw V and M at the user-specified structural load position X, not B/2.
+      // Footing self-weight is independently centred in the equilibrium calculations.
+      const mainLoadPx = mainFootX + mainFootW * Math.max(0, Math.min(1, loadX / Math.max(B, 1e-9)));
+      const loadOffset = Math.abs(loadX - B/2) > 1e-6;
+      for (const id of ['main-centerline','main-centerline-label']) document.getElementById(id).setAttribute('visibility', loadOffset ? 'visible' : 'hidden');
+      document.getElementById('main-centerline').setAttribute('x1', mainFootCenter);
+      document.getElementById('main-centerline').setAttribute('x2', mainFootCenter);
+      document.getElementById('main-centerline-label').setAttribute('x', mainFootCenter + 5);
+      document.getElementById('main-v-arrow').setAttribute('x1', mainLoadPx);
+      document.getElementById('main-v-arrow').setAttribute('x2', mainLoadPx);
       document.getElementById('main-v-arrow').setAttribute('y1', 19);
       document.getElementById('main-v-arrow').setAttribute('y2', Math.max(26,mainTopY-7));
       const mainVLabel = document.getElementById('main-v-label');
       mainVLabel.textContent = `V* = ${V_star.toFixed(0)} kN`;
-      mainVLabel.setAttribute('x', mainFootCenter + 13);
+      mainVLabel.setAttribute('x', mainLoadPx + 13);
       mainVLabel.setAttribute('y', 42);
-      // Purple moment arrow is centred above the vertical V* load arrow.
+      document.getElementById('sketchM').setAttribute('x', mainLoadPx);
+      // Purple moment arrow is centred above the user-specified load application point.
       // Arrowhead follows the governing contact-pressure side (left or right).
       const momentHeadRight = xGoverning >= B / 2;
       document.getElementById('main-m-curve').setAttribute('d', momentHeadRight
-        ? `M${mainFootCenter-30} 38 C${mainFootCenter-30} 16 ${mainFootCenter+30} 16 ${mainFootCenter+30} 38`
-        : `M${mainFootCenter+30} 38 C${mainFootCenter+30} 16 ${mainFootCenter-30} 16 ${mainFootCenter-30} 38`);
+        ? `M${mainLoadPx-30} 38 C${mainLoadPx-30} 16 ${mainLoadPx+30} 16 ${mainLoadPx+30} 38`
+        : `M${mainLoadPx+30} 38 C${mainLoadPx+30} 16 ${mainLoadPx-30} 16 ${mainLoadPx-30} 38`);
       document.getElementById('sketchM').setAttribute('x', mainFootCenter);
       document.getElementById('sketchM').setAttribute('y', 10);
       document.getElementById('sketchM').setAttribute('text-anchor', 'middle');
@@ -1679,10 +1692,19 @@
       document.getElementById('fc-hw-line').setAttribute('x1',hwDimX); document.getElementById('fc-hw-line').setAttribute('x2',hwDimX); document.getElementById('fc-hw-line').setAttribute('y1',baseY); document.getElementById('fc-hw-line').setAttribute('y2',wedgeBottomY);
       document.getElementById('fc-hw-ticks').setAttribute('d',`M${hwDimX-6} ${baseY}h12 M${hwDimX-6} ${wedgeBottomY}h12`);
       document.getElementById('fc-hw-label').setAttribute('x',Math.min(720,hwDimX+8)); document.getElementById('fc-hw-label').setAttribute('y',(baseY+wedgeBottomY)/2); document.getElementById('fc-hw-label').textContent=`Hw = ${Hw.toFixed(2)} m`;
-      // Keep applied V and M centred over the footing; only the failure wedge shifts with B′.
-      document.getElementById('fc-v-arrow').setAttribute('x1',fullCenterX); document.getElementById('fc-v-arrow').setAttribute('x2',fullCenterX);
+      // Applied structural V and M follow the entered X coordinate; show the
+      // foundation centreline separately whenever X differs from B/2.
+      const fcLoadPx = fullLeftX + fullWidthPx * Math.max(0, Math.min(1, loadX / Math.max(B, 1e-9)));
+      for (const id of ['fc-centerline','fc-centerline-label']) document.getElementById(id).setAttribute('visibility', loadOffset ? 'visible' : 'hidden');
+      document.getElementById('fc-centerline').setAttribute('x1',fullCenterX);
+      document.getElementById('fc-centerline').setAttribute('x2',fullCenterX);
+      document.getElementById('fc-centerline').setAttribute('y1',Math.max(43,topY-10));
+      document.getElementById('fc-centerline').setAttribute('y2',baseY+14);
+      document.getElementById('fc-centerline-label').setAttribute('x',fullCenterX+5);
+      document.getElementById('fc-centerline-label').setAttribute('y',baseY+27);
+      document.getElementById('fc-v-arrow').setAttribute('x1',fcLoadPx); document.getElementById('fc-v-arrow').setAttribute('x2',fcLoadPx);
       document.getElementById('fc-v-arrow').setAttribute('y1',38); document.getElementById('fc-v-arrow').setAttribute('y2',Math.max(48,topY-6));
-      document.getElementById('fc-v-label').setAttribute('x',fullCenterX+12); document.getElementById('fc-v-label').setAttribute('y',Math.max(45,topY-14));
+      document.getElementById('fc-v-label').setAttribute('x',fcLoadPx+12); document.getElementById('fc-v-label').setAttribute('y',Math.max(45,topY-14));
       document.getElementById('fc-v-label').textContent=`V* = ${V_star.toFixed(0)} kN`;
       // Orange lateral load arrow meets the left edge of the footing.
       const hY = topY + Math.max(3,(baseY-topY)/2);
@@ -1691,9 +1713,9 @@
       document.getElementById('fc-h-label').setAttribute('x',(Math.max(8,fullLeftX-62)+fullLeftX-3)/2); document.getElementById('fc-h-label').setAttribute('text-anchor','middle'); document.getElementById('fc-h-label').setAttribute('y',Math.max(14, Math.min(hY-13, groundY-12)));
       document.getElementById('fc-h-label').textContent=`H* = ${H_star.toFixed(0)} kN`;
       document.getElementById('fc-m-curve').setAttribute('d', momentHeadRight
-        ? `M${fullCenterX-28} 38 C${fullCenterX-28} 16 ${fullCenterX+28} 16 ${fullCenterX+28} 38`
-        : `M${fullCenterX+28} 38 C${fullCenterX+28} 16 ${fullCenterX-28} 16 ${fullCenterX-28} 38`);
-      document.getElementById('fc-m-label').setAttribute('x',fullCenterX); document.getElementById('fc-m-label').setAttribute('y',12); document.getElementById('fc-m-label').setAttribute('text-anchor','middle');
+        ? `M${fcLoadPx-28} 38 C${fcLoadPx-28} 16 ${fcLoadPx+28} 16 ${fcLoadPx+28} 38`
+        : `M${fcLoadPx+28} 38 C${fcLoadPx+28} 16 ${fcLoadPx-28} 16 ${fcLoadPx-28} 38`);
+      document.getElementById('fc-m-label').setAttribute('x',fcLoadPx); document.getElementById('fc-m-label').setAttribute('y',12); document.getElementById('fc-m-label').setAttribute('text-anchor','middle');
       document.getElementById('fc-m-label').textContent=`Mx* = ${Mx_star.toFixed(0)} kNm`;
       // Slope geometry: distance De starts at the footing's right edge; angle arc follows omega.
       const fcSlopeGap = Math.max(12, Math.min(110, De * 28));
