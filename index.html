@@ -549,6 +549,15 @@
           <p style="font-size:0.82rem;color:#64748b;margin:2px 0 10px 0;">(*θ (%) &lt; θ<sub>lim</sub> (%))</p>
         </div>
         <div id="conventional-bearing-capacity"> 
+        <div class="form-group"><label for="uls-pressure-distribution">Bearing Contact Pressure Distribution:</label><select id="uls-pressure-distribution" onchange="calculate()" style="width:190px"><option value="rectangular">Rectangular (V*/A′)</option><option value="triangular">Triangular (maximum pressure)</option></select></div>
+        <div id="triangular-pressure-details" style="display:none; padding:8px 10px; background:#f0f9ff; border-left:3px solid #0284c7; font-size:0.85rem; margin-bottom:8px;">
+          <div><strong>Pressure mechanism:</strong> <span id="triangular-pressure-mode">—</span></div>
+          <div>Contact length along B, B<sub>c</sub> (m): <span id="triangular-contact-b">—</span></div>
+          <div>Contact length along L, L<sub>c</sub> (m): <span id="triangular-contact-l">—</span></div>
+          <div id="triangular-pressure-equation"></div>
+          <div id="triangular-pressure-warning" style="color:#991b1b;font-weight:600;"></div>
+          <div style="font-size:0.8rem;color:#475569;">Idealised maximum contact pressure; not the conventional effective-area average. Double-triangular option follows the supplied separable pressure assumption.</div>
+        </div>
         <div class="form-group"><label id="bearing-pressure-label">ULS Bearing Pressure q<sub>d</sub> (kPa):</label><span id="res_applied" class="result-val">-</span></div> 
         <div class="form-group"><label>Ultimate Bearing Capacity q* (kPa):</label><span id="res_qu_ultimate" class="result-val">-</span></div>
         <div class="form-group"><label>Design Bearing Capacity q<sub>dbs</sub> (kPa):</label><span id="res_qu" class="result-val">-</span></div> 
@@ -698,7 +707,8 @@
       document.getElementById('displacementProbability'),
       // This option is located in the results panel but must be independent per tab.
       document.getElementById('considerPermanentDisplacement'),
-      document.getElementById('rocking-building-drift')
+      document.getElementById('rocking-building-drift'),
+      document.getElementById('uls-pressure-distribution')
     ].filter(Boolean);
     const loadCaseInputStates = {};
     let loadCaseStatesReady = false;
@@ -720,6 +730,8 @@
             const saved = state[el.id];
             el.value = typeof saved === 'object' && saved !== null ? saved.value : saved;
           }
+        } else if (el.id === 'uls-pressure-distribution') {
+          el.value = 'rectangular';
         } else if (el.id === 'considerPermanentDisplacement') {
           // Older saved projects have no per-case setting; default to unchecked.
           el.checked = false;
@@ -1325,8 +1337,87 @@
       const qd = Phi_B * qu; 
       const Qu = qd * A_prime; 
 
-      const applied_pressure = V_star / A_prime; 
-      const SLS_pressure = V / A_prime; 
+      // Optional idealised triangular contact pressure for each load case.
+      // Static SLS demand is independently evaluated below using unfactored loads.
+      // For one-axis triangular pressure, resultant lies one-third of contact
+      // length from the compressed edge: C = 3*(D/2-e).
+      // For two axes the user-supplied double-triangular (separable bilinear)
+      // distribution integrates to V = qmax*Bc*Lc/4; it is NOT the same as a
+      // planar triangular pyramid, which has a different volume coefficient.
+      const pressureChoice = document.getElementById('uls-pressure-distribution').value;
+      const triDetails = document.getElementById('triangular-pressure-details');
+      triDetails.style.display = pressureChoice === 'triangular' ? '' : 'none';
+      let applied_pressure = V_star / A_prime;
+      let triangularValid = true;
+      if (pressureChoice === 'triangular') {
+        const modeEl = document.getElementById('triangular-pressure-mode');
+        const bEl = document.getElementById('triangular-contact-b');
+        const lEl = document.getElementById('triangular-contact-l');
+        const eqEl = document.getElementById('triangular-pressure-equation');
+        const warnEl = document.getElementById('triangular-pressure-warning');
+        let mode = '', equation = '', warning = '';
+        let Bc = B, Lc = L;
+        if (isCircularFooting) {
+          triangularValid = false;
+          warning = 'Triangular pressure option applies to rectangular/square footings only.';
+        } else if (outsideFootprint || V_star <= 0) {
+          triangularValid = false;
+          warning = 'Invalid resultant or vertical load; triangular pressure cannot be determined.';
+        } else {
+          const triB = eb > B / 6 + 1e-9;
+          const triL = el > L / 6 + 1e-9;
+          if (triB) Bc = 3 * (B / 2 - eb);
+          if (triL) Lc = 3 * (L / 2 - el);
+          if (Bc <= 0 || Lc <= 0 || Bc > B + 1e-8 || Lc > L + 1e-8) {
+            triangularValid = false;
+            warning = 'Calculated triangular contact dimensions fall outside the footing.';
+          } else if (triB && triL) {
+            mode = 'Double-triangular (both directions)';
+            equation = 'q<sub>d,max</sub> = 4V* / (B<sub>c</sub> L<sub>c</sub>)';
+            applied_pressure = 4 * V_star / (Bc * Lc);
+          } else if (triB || triL) {
+            mode = triB ? 'Triangular along B; uniform along L' : 'Triangular along L; uniform along B';
+            equation = 'q<sub>d,max</sub> = 2V* / (B<sub>c</sub> L<sub>c</sub>)';
+            applied_pressure = 2 * V_star / (Bc * Lc);
+          } else {
+            // Fully compressed footing: linear contact distribution with
+            // nonzero minimum pressure; triangular formula is not applicable.
+            triangularValid = false;
+            warning = 'No axis has eccentricity greater than D/6. Contact is not triangular; select Rectangular or use a linear/trapezoidal analysis.';
+          }
+        }
+        modeEl.textContent = mode || 'Not applicable';
+        bEl.textContent = Number.isFinite(Bc) ? Bc.toFixed(3) : '—';
+        lEl.textContent = Number.isFinite(Lc) ? Lc.toFixed(3) : '—';
+        eqEl.innerHTML = equation;
+        warnEl.textContent = warning;
+        if (!triangularValid) applied_pressure = NaN;
+      }
+      const pressureLabel = document.getElementById('bearing-pressure-label');
+      if (pressureChoice === 'triangular') {
+        pressureLabel.innerHTML = (activeLoadCase === 'sls1' ? 'SLS1' : activeLoadCase === 'sls2' ? 'SLS2' : 'ULS') + ' Maximum Triangular Bearing Pressure q<sub>d,max</sub> (kPa):';
+      } else {
+        pressureLabel.innerHTML = (activeLoadCase === 'sls1' ? 'SLS1' : activeLoadCase === 'sls2' ? 'SLS2' : 'ULS') + ' Bearing Pressure q<sub>d</sub> (kPa):';
+      }
+      // Static SLS uses its own unfactored axial load and footing self-weight.
+      // The same pressure-distribution selection applies when a moment is specified.
+      let SLS_pressure = V / A_prime;
+      let slsTriangularValid = true;
+      if (activeLoadCase === 'static' && pressureChoice === 'triangular') {
+        const Wss = Number.isFinite(staticV) ? staticV : 0;
+        const Vsls = Wss + Wc;
+        const xs = Vsls > 0 ? (Wss * loadX + Wc * B / 2) / Vsls : NaN;
+        const ys = Vsls > 0 ? (Wss * loadY + Wc * L / 2) / Vsls : NaN;
+        const exs = Math.max(Math.abs(xs + Math.abs(Mx_star)/Vsls - B/2),
+                             Math.abs(xs - Math.abs(Mx_star)/Vsls - B/2));
+        const eys = Math.max(Math.abs(ys + Math.abs(My_star)/Vsls - L/2),
+                             Math.abs(ys - Math.abs(My_star)/Vsls - L/2));
+        const bcS = exs > B/6 ? 3*(B/2-exs) : B;
+        const lcS = eys > L/6 ? 3*(L/2-eys) : L;
+        const tbs = exs > B/6, tls = eys > L/6;
+        slsTriangularValid = !isCircularFooting && Vsls > 0 && bcS > 0 && lcS > 0 && (tbs || tls);
+        SLS_pressure = slsTriangularValid ? (tbs && tls ? 4 : 2)*Vsls/(bcS*lcS) : NaN;
+      }
       const qd_SLS = (v === 1) ? 0 : (Set * E) / (B_prime * (1 - Math.pow(v, 2))); 
 
       // Rocking critical-contact strip, simplified bearing equation with no
@@ -1391,8 +1482,8 @@
       const kern = B / 6; 
       const reaction = B_prime / 2; 
       const Comp_O = reaction > kern ? "PASS" : "FAIL"; 
-      const Comp_Bu = qd > applied_pressure ? "PASS" : "FAIL"; 
-      const Comp_Bs = qd_SLS > SLS_pressure ? "PASS" : "FAIL"; 
+      const Comp_Bu = !Number.isFinite(applied_pressure) ? 'N/A — pressure model not applicable' : qd > applied_pressure ? 'PASS' : 'FAIL'; 
+      const Comp_Bs = !Number.isFinite(SLS_pressure) ? 'N/A — pressure model not applicable' : qd_SLS > SLS_pressure ? "PASS" : "FAIL"; 
 
       document.getElementById('res_eb').innerText = eb.toFixed(2); 
       document.getElementById('res_el').innerText = el.toFixed(2); 
@@ -1429,7 +1520,7 @@
       Object.entries(soilLabels).forEach(([id, value]) => { const el = document.getElementById(id); if (el) el.textContent = value; });
       ['sketch-soil-adhesion', 'fc-soil-adhesion'].forEach(id => { document.getElementById(id).style.display = undrained ? '' : 'none'; });
       document.getElementById('res_q_prime').innerText = q_prime.toFixed(2); 
-      document.getElementById('res_applied').innerText = applied_pressure.toFixed(2); 
+      document.getElementById('res_applied').innerText = Number.isFinite(applied_pressure) ? applied_pressure.toFixed(2) : 'N/A'; 
       document.getElementById('res_sliding_load').innerText = slidingLoad.toFixed(2);
       document.getElementById('res_sliding_resistance').innerText = designSlidingResistance.toFixed(2);
       document.getElementById('res_sliding_compliance').innerText = slidingCompliance;
@@ -1441,7 +1532,9 @@
       document.getElementById('res_sliding_base_ultimate').innerText = baseSlidingResistanceRaw.toFixed(2);
       document.getElementById('res_design_interface').innerText = (undrained ? 0 : baseInterfaceAngle).toFixed(2);
       document.getElementById('qds').innerText = isNaN(qd_SLS) || !isFinite(qd_SLS) ? "0.00" : qd_SLS.toFixed(2); 
-      document.getElementById('q_SLS').innerText = SLS_pressure.toFixed(2); 
+      document.getElementById('q_SLS').innerText = Number.isFinite(SLS_pressure) ? SLS_pressure.toFixed(2) : 'N/A';
+      const slsLabel = document.querySelector('label[for="q_SLS"]');
+      if (slsLabel) slsLabel.innerHTML = pressureChoice === 'triangular' ? 'SLS Maximum Triangular Bearing Pressure q<sub>s,max</sub> (kPa):' : 'SLS Bearing Pressure q<sub>s</sub> (kPa):'; 
       document.getElementById('R').innerText = reaction.toFixed(2); 
       document.getElementById('BR').innerText = kern.toFixed(2); 
       
