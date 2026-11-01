@@ -372,7 +372,8 @@
       <text id="main-slope-angle-label" x="507" y="83" font-size="10" fill="#8a7758">ω = 0.5°</text>
       
       <!-- Meyerhof Shifting Stress Area Box Profile --> 
-      <rect id="press-rect" x="180" y="62" width="280" height="30" fill="url(#foundation-pressure-hatch)" stroke="#d97706" stroke-width="2" /> 
+      <rect id="press-rect" x="180" y="62" width="280" height="30" fill="url(#foundation-pressure-hatch)" stroke="#d97706" stroke-width="2" />
+      <polygon id="press-triangle" points="180,62 460,62 460,92" fill="url(#foundation-pressure-hatch)" stroke="#d97706" stroke-width="2" visibility="hidden" /> 
       
       <!-- Symmetrical Distribution Vertical Upward Pressure Arrows --> 
       <path id="p-arr-0" fill="none" stroke="#dc3545" stroke-width="1.5" marker-end="url(#arrow-red)"/> 
@@ -1668,27 +1669,51 @@
       document.getElementById('main-slope-angle-label').setAttribute('fill', '#16a34a');
       document.getElementById('main-slope-angle-label').textContent = `ω = ${omegaDeg.toFixed(1)}°`;
 
-      // The full footing is proportional to B. The pressure block and arrows use B′ and remain inside B.
+      // The rectangular pressure diagram uses B′ (Meyerhof effective area).
+      // A triangular distribution has a DIFFERENT actual contact length Bc =
+      // 3(B/2-eb), not B′ = B-2eb. The resultant is at Bc/3 from the
+      // compressed edge. Use Bc to draw the physical triangular pressure wedge.
       const visualBPrimeWidth = Math.max(8, Math.min(mainFootW, mainFootW * (Math.min(B_prime,B) / Math.max(B,0.001))));
       const isMomentPositive = xGoverning >= B / 2;
-      const visualStartX = isMomentPositive ? (mainFootRight - visualBPrimeWidth) : mainFootX;
+      const pressureIsTriB = pressureChoice === 'triangular' && triangularValid && !isCircularFooting && eb > B/6 + 1e-9;
+      const pressureIsTriLOnly = pressureChoice === 'triangular' && triangularValid && !pressureIsTriB;
+      const contactB = pressureIsTriB ? Math.max(0, 3*(B/2-eb)) : B_prime;
+      const visualContactWidth = Math.max(1, Math.min(mainFootW, mainFootW * contactB / Math.max(B,0.001)));
+      const visualStartX = isMomentPositive ? mainFootRight - visualContactWidth : mainFootX;
       const pressBox = document.getElementById('press-rect');
+      const pressTriangle = document.getElementById('press-triangle');
+      pressBox.setAttribute('visibility', pressureIsTriB ? 'hidden' : 'visible');
+      pressTriangle.setAttribute('visibility', pressureIsTriB ? 'visible' : 'hidden');
       pressBox.setAttribute('x', visualStartX);
       pressBox.setAttribute('y', mainBaseY);
-      pressBox.setAttribute('width', visualBPrimeWidth);
+      pressBox.setAttribute('width', visualContactWidth);
       pressBox.setAttribute('height', 13);
+      const pressureDepth = 38;
+      if (pressureIsTriB) {
+        const outerEdge = isMomentPositive ? mainFootRight : mainFootX;
+        const zeroEdge = isMomentPositive ? visualStartX : visualStartX + visualContactWidth;
+        pressTriangle.setAttribute('points', `${zeroEdge},${mainBaseY} ${outerEdge},${mainBaseY} ${outerEdge},${mainBaseY+pressureDepth}`);
+      }
       for (let i = 0; i < 5; i++) {
-        const arrowX = visualStartX + visualBPrimeWidth * i / 4;
-        document.getElementById(`p-arr-${i}`).setAttribute('d', `M${arrowX} ${Math.min(195,mainBaseY+40)}V${mainBaseY+14}`);
+        const fraction = (i + 0.5)/5;
+        const arrowX = visualStartX + visualContactWidth*fraction;
+        const relative = isMomentPositive ? fraction : 1-fraction;
+        const arrowLength = pressureIsTriB ? Math.max(3,pressureDepth*relative) : 27;
+        document.getElementById(`p-arr-${i}`).setAttribute('d', `M${arrowX} ${mainBaseY+arrowLength}V${mainBaseY+2}`);
       }
       const labelElement = document.getElementById('sketch_qu_val');
-      labelElement.setAttribute('x', visualStartX + visualBPrimeWidth/2);
+      labelElement.setAttribute('x', visualStartX + visualContactWidth/2);
       labelElement.setAttribute('y', Math.min(210,mainBaseY+57));
-      labelElement.textContent = `q = ${applied_pressure.toFixed(2)} kPa; B′ = ${B_prime.toFixed(2)} m`;
+      const pressureText = Number.isFinite(applied_pressure) ? applied_pressure.toFixed(2) : 'N/A';
+      labelElement.textContent = pressureIsTriB
+        ? `qmax = ${pressureText} kPa; Bc = ${contactB.toFixed(2)} m`
+        : pressureIsTriLOnly
+          ? `qmax = ${pressureText} kPa; triangular along L (plan view)`
+          : `q = ${pressureText} kPa; B′ = ${B_prime.toFixed(2)} m`;
       // B dimension spans the concrete footing edges.
       document.getElementById('sketchB').setAttribute('x', mainFootCenter);
       document.getElementById('sketchB').setAttribute('y', mainBDimY + 18);
-      document.getElementById('sketchType').textContent = `${document.getElementById('footing').value.replace(' footing','')} Effective footing width • B′ = ${B_prime.toFixed(2)} m • t = ${inputT.toFixed(2)} m • Df = ${Df.toFixed(2)} m`;
+      document.getElementById('sketchType').textContent = pressureIsTriB ? `${document.getElementById('footing').value.replace(' footing','')} Contact footing width • Bc = ${contactB.toFixed(2)} m • t = ${inputT.toFixed(2)} m • Df = ${Df.toFixed(2)} m` : `${document.getElementById('footing').value.replace(' footing','')} Effective footing width • B′ = ${B_prime.toFixed(2)} m • t = ${inputT.toFixed(2)} m • Df = ${Df.toFixed(2)} m`;
 
       // --- DYNAMIC GROUNDWATER LEVEL TRACKING ENGINE ---
       const gwLine = document.getElementById('groundwater-line');
@@ -1714,7 +1739,9 @@
       const footingThickPx = Math.max(5, Math.min(70, Math.max(0, parseFloat(document.getElementById('t').value) || 0) * 45));
       const topY = (Df <= 0) ? groundY - footingThickPx : baseY - footingThickPx;
       const fullWidthPx = Math.max(40, Math.min(300, 220 * B / 2));
-      const effectiveWidthPx = Math.max(8, Math.min(fullWidthPx, fullWidthPx * (Math.min(B_prime, B) / Math.max(B, 0.1))));
+      const fcTriangular = pressureIsTriB;
+      const fcContactWidth = fcTriangular ? contactB : B_prime;
+      const effectiveWidthPx = Math.max(8, Math.min(fullWidthPx, fullWidthPx * (Math.min(fcContactWidth, B) / Math.max(B, 0.1))));
       const fullCenterX = 380;
       const fullLeftX = fullCenterX - fullWidthPx / 2;
       const fullRightX = fullCenterX + fullWidthPx / 2;
@@ -1734,14 +1761,16 @@
         line.setAttribute('x1', x); line.setAttribute('x2', x);
         line.setAttribute('y1', topY + 1); line.setAttribute('y2', baseY - 1);
       });
-      // Red upward arrow marks the midpoint of the effective width, B′/2 from its edge.
+      // Triangular pressure resultant lies at Bc/3 from the compressed edge.
+      // Uniform equivalent pressure resultant lies at B′/2.
       const bHalfArrow = document.getElementById('fc-bprime-half-arrow');
       const bHalfLabel = document.getElementById('fc-bprime-half-label');
-      bHalfArrow.setAttribute('x1', centerX); bHalfArrow.setAttribute('x2', centerX);
+      const fcArrowX = fcTriangular ? (isMomentPositive ? fullRightX - effectiveWidthPx/3 : fullLeftX + effectiveWidthPx/3) : centerX;
+      bHalfArrow.setAttribute('x1', fcArrowX); bHalfArrow.setAttribute('x2', fcArrowX);
       // Upward red arrow ends exactly at the footing base; use a compact arrowhead.
       bHalfArrow.setAttribute('y1', Math.min(440, baseY + 76)); bHalfArrow.setAttribute('y2', baseY + 19);
-      bHalfLabel.setAttribute('x', centerX + 12); bHalfLabel.setAttribute('y', Math.min(455, baseY + 87));
-      bHalfLabel.textContent = `B′/2 = ${(B_prime / 2).toFixed(2)} m`;
+      bHalfLabel.setAttribute('x', fcArrowX + 12); bHalfLabel.setAttribute('y', Math.min(455, baseY + 87));
+      bHalfLabel.textContent = fcTriangular ? `Bc/3 = ${(fcContactWidth/3).toFixed(2)} m` : `B′/2 = ${(B_prime / 2).toFixed(2)} m`;
       // Print-safe arrowhead kept clear of the underside of the footing.
       let redTip = document.getElementById('fc-bprime-arrow-tip');
       if (!redTip) {
@@ -1751,25 +1780,29 @@
         bHalfArrow.parentNode.appendChild(redTip);
       }
       const redTipY=baseY+19;
-      redTip.setAttribute('points',`${centerX},${redTipY} ${centerX-6},${redTipY+12} ${centerX+6},${redTipY+12}`);
+      redTip.setAttribute('points',`${fcArrowX},${redTipY} ${fcArrowX-6},${redTipY+12} ${fcArrowX+6},${redTipY+12}`);
 
       document.getElementById('fc-base').setAttribute('x1', fullLeftX);
       document.getElementById('fc-base').setAttribute('x2', fullRightX);
       document.getElementById('fc-base').setAttribute('y1', baseY);
       document.getElementById('fc-base').setAttribute('y2', baseY);
-      document.getElementById('fc-wedge-fill').setAttribute('d', `M${leftX} ${baseY} L${centerX} ${wedgeBottomY} L${rightX} ${baseY} Z`);
+      const fcApexX = fcTriangular ? (isMomentPositive ? fullRightX : fullLeftX) : centerX;
+      const fcZeroX = fcTriangular ? (isMomentPositive ? leftX : rightX) : leftX;
+      document.getElementById('fc-wedge-fill').setAttribute('d', fcTriangular
+        ? `M${fcZeroX} ${baseY} L${fcApexX} ${baseY} L${fcApexX} ${wedgeBottomY} Z`
+        : `M${leftX} ${baseY} L${centerX} ${wedgeBottomY} L${rightX} ${baseY} Z`);
       // Explicitly label the effective bearing/failure width and track its shifted position.
       let fcEffLabel = document.getElementById('fc-effective-width-label');
       if (!fcEffLabel) { fcEffLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text'); fcEffLabel.setAttribute('id', 'fc-effective-width-label'); fcEffLabel.setAttribute('text-anchor', 'middle'); fcEffLabel.setAttribute('font-size', '11'); fcEffLabel.setAttribute('fill', '#92400e'); fs.appendChild(fcEffLabel); }
-      fcEffLabel.setAttribute('x', centerX); fcEffLabel.setAttribute('y', Math.min(345, wedgeBottomY + 17)); fcEffLabel.textContent = `B′ = ${B_prime.toFixed(2)} m`;
-      document.getElementById('fc-slip-left').setAttribute('d', `M${leftX} ${baseY} L${centerX} ${wedgeBottomY}`);
-      document.getElementById('fc-slip-right').setAttribute('d', `M${rightX} ${baseY} L${centerX} ${wedgeBottomY}`);
+      fcEffLabel.setAttribute('x', centerX); fcEffLabel.setAttribute('y', Math.min(345, wedgeBottomY + 17)); fcEffLabel.textContent = fcTriangular ? `Bc = ${fcContactWidth.toFixed(2)} m` : `B′ = ${B_prime.toFixed(2)} m`;
+      document.getElementById('fc-slip-left').setAttribute('d', fcTriangular ? `M${fcZeroX} ${baseY} L${fcApexX} ${wedgeBottomY}` : `M${leftX} ${baseY} L${centerX} ${wedgeBottomY}`);
+      document.getElementById('fc-slip-right').setAttribute('d', fcTriangular ? `M${fcApexX} ${baseY} L${fcApexX} ${wedgeBottomY}` : `M${rightX} ${baseY} L${centerX} ${wedgeBottomY}`);
       document.getElementById('fc-b-label').setAttribute('x', fullCenterX);
       document.getElementById('fc-b-label').setAttribute('y', Math.min(260,baseY+36) + 18);
       document.getElementById('fc-b-label').textContent = `B = ${B.toFixed(2)} m`;
       const fcType=document.getElementById('fc-effective-footing-caption');
-      if(fcType)fcType.textContent = `${document.getElementById('footing').value.replace(' footing','')} Effective footing width • B′ = ${B_prime.toFixed(2)} m • t = ${Number(document.getElementById('t').value).toFixed(2)} m • Df = ${Df.toFixed(2)} m`;
-      document.getElementById('fc-wedge').setAttribute('aria-label', `Failure wedge based on effective width B prime ${B_prime.toFixed(2)} metres`);
+      if(fcType)fcType.textContent = fcTriangular ? `${document.getElementById('footing').value.replace(' footing','')} Contact footing width • Bc = ${fcContactWidth.toFixed(2)} m • t = ${Number(document.getElementById('t').value).toFixed(2)} m • Df = ${Df.toFixed(2)} m` : `${document.getElementById('footing').value.replace(' footing','')} Effective footing width • B′ = ${B_prime.toFixed(2)} m • t = ${Number(document.getElementById('t').value).toFixed(2)} m • Df = ${Df.toFixed(2)} m`;
+      document.getElementById('fc-wedge').setAttribute('aria-label', fcTriangular ? `Schematic triangular contact zone Bc ${fcContactWidth.toFixed(2)} metres` : `Failure wedge based on effective width B prime ${B_prime.toFixed(2)} metres`);
       // Show B/6 dimension at one location only: the first of the six equal footing blocks.
       const b6RightX = fullLeftX + fullWidthPx / 6;
       const b6Y = Math.min(245, baseY + 16);
