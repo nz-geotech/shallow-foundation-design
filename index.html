@@ -407,7 +407,7 @@
       <text id="sketch-soil-E" x="235" y="366" font-size="11" fill="#334155">E = — MPa</text>
       <text id="sketch-soil-nu" x="235" y="383" font-size="11" fill="#334155">ν = —</text>
       <text x="22" y="439" font-size="10" fill="#52606d" font-style="italic">(*weighted average design values within failure zone)</text>
-      <text id="sketch-soil-adhesion" x="170" y="411" font-size="11" fill="#334155" style="display:none">ca = — kPa</text>
+      <text id="sketch-soil-adhesion" x="235" y="400" font-size="11" fill="#334155" style="display:none">ca = — kPa</text>
       <text x="320" y="460" text-anchor="middle" font-size="11" fill="#52606d" font-style="italic">Schematic only, not to scale</text> 
       <!-- Coordinate axes: x out of plane (dot), y in plane (right), z downward -->
       <g id="main-coordinate-axes" transform="translate(565,375)" font-size="11" font-weight="bold" aria-label="x out of plane, y in plane, z downward">
@@ -477,11 +477,11 @@
       <text id="fc-soil-gamma" x="14" y="407" font-size="10.5" fill="#334155">gamma = — kN/m³</text>
       <text id="fc-soil-phi" x="14" y="424" font-size="10.5" fill="#334155">phi' = —°</text>
       <text id="fc-soil-c" x="14" y="441" font-size="10.5" fill="#334155">c' = — kPa</text>
-      <text id="fc-soil-su" x="170" y="441" font-size="10.5" fill="#334155">Su = — kPa</text>
-      <text id="fc-soil-E" x="14" y="458" font-size="10.5" fill="#334155">E = — MPa</text>
-      <text id="fc-soil-nu" x="170" y="458" font-size="10.5" fill="#334155">ν = —</text>
-      <text x="14" y="482" font-size="10.5" fill="#52606d" font-style="italic">(*weighted average design values within failure zone)</text>
-      <text id="fc-soil-adhesion" x="170" y="458" font-size="10.5" fill="#334155" style="display:none">ca = — kPa</text>
+      <text id="fc-soil-su" x="14" y="458" font-size="10.5" fill="#334155">Su = — kPa</text>
+      <text id="fc-soil-E" x="265" y="407" font-size="10.5" fill="#334155">E = — MPa</text>
+      <text id="fc-soil-nu" x="265" y="424" font-size="10.5" fill="#334155">ν = —</text>
+      <text x="14" y="501" font-size="10.5" fill="#52606d" font-style="italic">(*weighted average design values within failure zone)</text>
+      <text id="fc-soil-adhesion" x="265" y="441" font-size="10.5" fill="#334155" style="display:none">ca = — kPa</text>
       <!-- Coordinate axes: x out of plane (dot), y in plane (right), z downward -->
       <g id="failure-coordinate-axes" transform="translate(675,447)" font-size="11" font-weight="bold" aria-label="x out of plane, y in plane, z downward">
         <circle cx="7" cy="5" r="7" fill="none" stroke="#2563eb" stroke-width="2"/><circle cx="7" cy="5" r="2.5" fill="#2563eb"/>
@@ -572,11 +572,13 @@
         <h3>2.3 Sliding Resistance</h3>
         <div class="form-group"><label id="sliding-load-label">ULS Sliding Load, H (kN):</label><span id="res_sliding_load" class="result-val">-</span></div>
         <div class="form-group"><label>Ultimate Passive Resistance P (kN):</label><span id="res_sliding_passive" class="result-val">-</span></div>
+        <div class="form-group" id="sliding-adhesion-factor-row" style="display:none;"><label for="slidingAdhesionAlpha">User-defined interface adhesion factor α (-):</label><input id="slidingAdhesionAlpha" type="number" min="0" max="1" step="0.01" value="1.00" oninput="calculate()" style="width:110px;"></div>
+        <div class="form-group"><label id="sliding-interface-result-label">Design interface friction δ (°):</label><span id="res_design_interface" class="result-val">-</span></div>
+        <div class="form-group"><label>Effective Area A′ (m²):</label><span id="res_sliding_effective_area" class="result-val">-</span></div>
         <div class="form-group"><label>Ultimate Base Sliding Resistance S (kN):</label><span id="res_sliding_base_ultimate" class="result-val">-</span></div>
-        <div class="form-group"><label>Design interface friction δ (°):</label><span id="res_design_interface" class="result-val">-</span></div>
-        <div class="form-group"><label>Design Sliding Resistance S* (kN):</label><span id="res_sliding_resistance" class="result-val">-</span></div>
+        <div class="form-group"><label id="sliding-design-result-label">Design Sliding Resistance φ<sub>sl</sub>S + φ<sub>pp</sub>P (kN):</label><span id="res_sliding_resistance" class="result-val">-</span></div>
         <div class="form-group"><label>Design Compliance:</label><span id="res_sliding_compliance" class="result-val">-</span></div>
-        <div style="font-size:11px; color:#666; margin:0 0 8px 4px;">* S &gt; H</div>
+        <div id="sliding-compliance-criterion" style="font-size:11px; color:#666; margin:0 0 8px 4px;">* S* &gt; H</div>
         <div class="form-group" id="considerPermanentDisplacementRow" style="justify-content:flex-start; gap:10px; align-items:center; margin-top:4px; display:none;">
           <input type="checkbox" id="considerPermanentDisplacement" onchange="calculate()" style="width:auto; transform:scale(1.1);">
           <label for="considerPermanentDisplacement" style="width:auto; font-weight:600;">Consider Permanent Displacement</label>
@@ -709,7 +711,8 @@
       // This option is located in the results panel but must be independent per tab.
       document.getElementById('considerPermanentDisplacement'),
       document.getElementById('rocking-building-drift'),
-      document.getElementById('uls-pressure-distribution')
+      document.getElementById('uls-pressure-distribution'),
+      document.getElementById('slidingAdhesionAlpha')
     ].filter(Boolean);
     const loadCaseInputStates = {};
     let loadCaseStatesReady = false;
@@ -1031,7 +1034,7 @@
       const Phi_B = parseFloat(document.getElementById('Phi_B').value) || 1; 
       const Phi_S = parseFloat(document.getElementById('Phi_S').value) || 1; 
       const Phi_EP = parseFloat(document.getElementById('Phi_EP').value) || 1; 
-      const Set = parseFloat(document.getElementById('Set').value) || 10; 
+      const Set = parseFloat(document.getElementById('Set').value); 
       let E = parseFloat(document.getElementById('E').value) || 0; 
       let v = parseFloat(document.getElementById('v').value) || 0;
       const rockingFoundationDesign = activeLoadCase !== 'static' && document.getElementById('rockingFoundationDesign').checked;
@@ -1220,8 +1223,10 @@
       // In undrained analysis, follow the requested Su × A' base-resistance model.
       const hardfillR = Math.max(0, Math.min(1, parseFloat(document.getElementById('hardfillR').value) || 0));
       const baseInterfaceAngle = hardfillEnabled ? hardfillR * hardfillStrength : deltaDeg;
+      const slidingAlphaInput = Number(document.getElementById('slidingAdhesionAlpha').value);
+      const slidingAdhesionFactor = Number.isFinite(slidingAlphaInput) ? Math.max(0, Math.min(1, slidingAlphaInput)) : 1;
       const baseSlidingResistanceRaw = undrained
-        ? Math.max(0, c_prime) * A_prime
+        ? slidingAdhesionFactor * Math.max(0, c_prime) * A_prime
         : Math.max(0, c_prime) * A_prime + Math.max(0, V_star) * Math.tan(Math.max(0, baseInterfaceAngle) * Math.PI / 180);
       const baseSlidingResistance = Phi_S * baseSlidingResistanceRaw;
 
@@ -1252,7 +1257,7 @@
             + 2 * Math.max(0, nativeStrength) * passiveDepth * Math.sqrt(Kp) * passiveSlidingWidth;
       }
       const passiveSlidingResistance = Phi_EP * passiveResistanceRaw;
-      const designSlidingResistance = baseSlidingResistanceRaw * Phi_S + passiveResistanceRaw * Phi_EP;
+      const designSlidingResistance = baseSlidingResistanceRaw * Phi_S + (considerPassive ? passiveResistanceRaw * Phi_EP : 0);
       const slidingLoad = Math.abs(H_star);
       const slidingCompliance = designSlidingResistance > slidingLoad ? 'PASS' : 'FAIL';
       // Jibson (2007) displacement check uses base resistance ONLY, with SRF(phi_sl) = 1.
@@ -1419,7 +1424,8 @@
         slsTriangularValid = !isCircularFooting && Vsls > 0 && bcS > 0 && lcS > 0 && (tbs || tls);
         SLS_pressure = slsTriangularValid ? (tbs && tls ? 4 : 2)*Vsls/(bcS*lcS) : NaN;
       }
-      const qd_SLS = (v === 1) ? 0 : (Set * E) / (B_prime * (1 - Math.pow(v, 2))); 
+      const settlementCriteriaValid = Number.isFinite(Set) && Set > 0;
+      const qd_SLS = (!settlementCriteriaValid || v === 1) ? NaN : (Set * E) / (B_prime * (1 - Math.pow(v, 2))); 
 
       // Rocking critical-contact strip, simplified bearing equation with no
       // surcharge, inclination, depth, shape, compressibility or slope factors.
@@ -1484,7 +1490,7 @@
       const reaction = B_prime / 2; 
       const Comp_O = reaction > kern ? "PASS" : "FAIL"; 
       const Comp_Bu = !Number.isFinite(applied_pressure) ? 'N/A — pressure model not applicable' : qd > applied_pressure ? 'PASS' : 'FAIL'; 
-      const Comp_Bs = !Number.isFinite(SLS_pressure) ? 'N/A — pressure model not applicable' : qd_SLS > SLS_pressure ? "PASS" : "FAIL"; 
+      const Comp_Bs = !settlementCriteriaValid ? 'INPUT REQUIRED' : !Number.isFinite(SLS_pressure) ? 'N/A — pressure model not applicable' : qd_SLS > SLS_pressure ? "PASS" : "FAIL"; 
 
       document.getElementById('res_eb').innerText = eb.toFixed(2); 
       document.getElementById('res_el').innerText = el.toFixed(2); 
@@ -1515,8 +1521,8 @@
         'sketch-soil-nu': `ν = ${v.toFixed(3)}`,
         'fc-soil-E': `E = ${E.toFixed(2)} MPa`,
         'fc-soil-nu': `ν = ${v.toFixed(3)}`, 
-        'sketch-soil-adhesion': `ca = ${(hardfillEnabled ? hardfillR * hardfillStrength : deltaDeg).toFixed(2)} kPa`,
-        'fc-soil-adhesion': `ca = ${(hardfillEnabled ? hardfillR * hardfillStrength : deltaDeg).toFixed(2)} kPa`
+        'sketch-soil-adhesion': `ca = ${(undrained ? slidingAdhesionFactor * Math.max(0,c_prime) : (hardfillEnabled ? hardfillR * hardfillStrength : deltaDeg)).toFixed(2)} kPa`,
+        'fc-soil-adhesion': `ca = ${(undrained ? slidingAdhesionFactor * Math.max(0,c_prime) : (hardfillEnabled ? hardfillR * hardfillStrength : deltaDeg)).toFixed(2)} kPa`
       };
       Object.entries(soilLabels).forEach(([id, value]) => { const el = document.getElementById(id); if (el) el.textContent = value; });
       ['sketch-soil-adhesion', 'fc-soil-adhesion'].forEach(id => { document.getElementById(id).style.display = undrained ? '' : 'none'; });
@@ -1524,15 +1530,27 @@
       document.getElementById('res_applied').innerText = Number.isFinite(applied_pressure) ? applied_pressure.toFixed(2) : 'N/A'; 
       document.getElementById('res_sliding_load').innerText = slidingLoad.toFixed(2);
       document.getElementById('res_sliding_resistance').innerText = designSlidingResistance.toFixed(2);
+      document.getElementById('sliding-design-result-label').innerHTML = undrained
+        ? 'Design Sliding Resistance φ<sub>sl</sub>A′c<sub>a</sub> + φ<sub>pp</sub>P (kN):'
+        : 'Design Sliding Resistance φ<sub>sl</sub>S + φ<sub>pp</sub>P (kN):';
+      document.getElementById('sliding-compliance-criterion').textContent = undrained ? '* (φsl A′ca + φpp P) > H' : (considerPassive ? '* (φsl S + φpp P) > H' : '* φsl S > H');
       document.getElementById('res_sliding_compliance').innerText = slidingCompliance;
       document.getElementById('considerPermanentDisplacementRow').style.display = activeLoadCase !== 'static' && slidingCompliance === 'FAIL' ? 'flex' : 'none';
       document.getElementById('displacement-inputs').style.display = activeLoadCase !== 'static' && slidingCompliance === 'FAIL' && document.getElementById('considerPermanentDisplacement').checked ? 'block' : 'none';
       document.getElementById('res_sliding_compliance').style.color = slidingCompliance === 'PASS' ? 'green' : 'red';
-      // Display ultimate base and passive resistances separately from the factored design sum.
+      // Show design base sliding resistance S* and design passive resistance P separately; compliance uses their sum without double-counting.
       document.getElementById('res_sliding_passive').innerText = passiveResistanceRaw.toFixed(2);
       document.getElementById('res_sliding_base_ultimate').innerText = baseSlidingResistanceRaw.toFixed(2);
-      document.getElementById('res_design_interface').innerText = (undrained ? 0 : baseInterfaceAngle).toFixed(2);
-      document.getElementById('qds').innerText = isNaN(qd_SLS) || !isFinite(qd_SLS) ? "0.00" : qd_SLS.toFixed(2); 
+      document.getElementById('res_sliding_effective_area').innerText = A_prime.toFixed(2);
+      // User-defined interface adhesion factor applies to undrained base sliding only.
+      document.getElementById('sliding-adhesion-factor-row').style.display = undrained ? 'flex' : 'none';
+      document.getElementById('sliding-interface-result-label').innerHTML = undrained
+        ? 'Design interface adhesion c<sub>a</sub> = α S<sub>u</sub> (kPa):'
+        : 'Design interface friction δ (°):';
+      document.getElementById('res_design_interface').innerText = undrained
+        ? (slidingAdhesionFactor * Math.max(0, c_prime)).toFixed(2)
+        : baseInterfaceAngle.toFixed(2);
+      document.getElementById('qds').innerText = settlementCriteriaValid && Number.isFinite(qd_SLS) ? qd_SLS.toFixed(2) : 'Enter Settlement Criteria (mm) > 0'; 
       document.getElementById('q_SLS').innerText = Number.isFinite(SLS_pressure) ? SLS_pressure.toFixed(2) : 'N/A';
       const slsLabel = document.querySelector('label[for="q_SLS"]');
       if (slsLabel) slsLabel.innerHTML = pressureChoice === 'triangular' ? 'SLS Maximum Triangular Bearing Pressure q<sub>s,max</sub> (kPa):' : 'SLS Bearing Pressure q<sub>s</sub> (kPa):'; 
