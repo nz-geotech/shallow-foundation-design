@@ -209,12 +209,12 @@
   <!-- Print Control Bar --> 
   <div class="card no-print" style="text-align: center;"> 
     <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px;">
-      <button onclick="saveInputFile()" style="background-color:#0b5ed7; color:white; padding:12px 20px; font-weight:bold; border:none; border-radius:4px; cursor:pointer; font-size:1rem;">💾 Save Input File</button>
+      <button onclick="saveInputFile()" style="background-color:#0b5ed7; color:white; padding:12px 20px; font-weight:bold; border:none; border-radius:4px; cursor:pointer; font-size:1rem;">💾 Save Input File As…</button>
       <button onclick="document.getElementById('input-file-loader').click()" style="background-color:#6c757d; color:white; padding:12px 20px; font-weight:bold; border:none; border-radius:4px; cursor:pointer; font-size:1rem;">📂 Reload Input File</button>
       <button onclick="printAllLoadCases()" style="background-color: #198754; color: white; padding: 12px 20px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">🖨️ Print Calculations / Save to PDF</button>
     </div>
     <input type="file" id="input-file-loader" accept=".json,application/json" style="display:none" onchange="loadInputFile(event)">
-    <p style="margin:10px 0 0; color:#64748b; font-size:0.85rem;">Save your project inputs to a JSON file and reload them later, including all four load cases.</p>
+    <p style="margin:10px 0 0; color:#64748b; font-size:0.85rem;">Choose a file name and save location when supported by your browser. Reload the JSON file later, including all four load cases.</p>
   </div> 
 
   <!-- Main Title --> 
@@ -746,7 +746,7 @@
     }
 
     // Export/import project metadata and independent inputs for all four load cases.
-    function saveInputFile() {
+    async function saveInputFile() {
       loadCaseInputStates[activeLoadCase] = captureDesignInputs();
       const metadata = {};
       ['project_name', 'company_name', 'client_name', 'project_location', 'structure_type', 'load_case', 'done_by', 'checked_by'].forEach(id => {
@@ -763,15 +763,38 @@
         loadCases: loadCaseInputStates
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const project = (metadata.project_name || 'foundation-design').trim().replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || 'foundation-design';
+      const suggestedName = project + '_inputs.json';
+      // Native Save As: lets the user choose both folder and filename where supported.
+      if (typeof window.showSaveFilePicker === 'function') {
+        try {
+          const handle = await window.showSaveFilePicker({
+            suggestedName,
+            types: [{ description: 'Foundation project input (JSON)', accept: { 'application/json': ['.json'] } }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+          return;
+        } catch (error) {
+          if (error && error.name === 'AbortError') return; // User cancelled.
+          console.warn('Native Save As unavailable; using browser download instead.', error);
+        }
+      }
+      // Fallback for browsers or contexts without File System Access API.
+      // Filename can be chosen here; download location is controlled by browser settings.
+      const chosenName = window.prompt('Enter the project file name (your browser controls the save folder):', suggestedName);
+      if (chosenName === null) return;
+      const filename = chosenName.trim().replace(/[\\/:*?"<>|]/g, '_');
+      if (!filename) return;
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      const project = (metadata.project_name || 'foundation-design').trim().replace(/[^a-z0-9_-]+/gi, '_').replace(/^_+|_+$/g, '') || 'foundation-design';
       link.href = url;
-      link.download = project + '_inputs.json';
+      link.download = /\.json$/i.test(filename) ? filename : filename + '.json';
       document.body.appendChild(link);
       link.click();
       link.remove();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
     function loadInputFile(event) {
