@@ -1087,7 +1087,9 @@
       const eff = (coordinate, dimension) => 2 * Math.min(coordinate, dimension - coordinate);
       const bPlus = eff(xPlus, B), bMinus = eff(xMinus, B);
       const lPlus = eff(yPlus, L), lMinus = eff(yMinus, L);
-      const xGoverning = bPlus <= bMinus ? xPlus : xMinus;
+      // On a tie, place the governing pressure/failure mechanism on the right.
+      // Preserve the smaller-effective-width rule for offset vertical loads.
+      const xGoverning = bPlus < bMinus - 1e-9 ? xPlus : bMinus < bPlus - 1e-9 ? xMinus : (xPlus >= B / 2 ? xPlus : xMinus);
       const yGoverning = lPlus <= lMinus ? yPlus : yMinus;
       const outsideFootprint = !Number.isFinite(loadX) || !Number.isFinite(loadY) ||
         loadX < 0 || loadX > B || loadY < 0 || loadY > L ||
@@ -1678,17 +1680,21 @@
       document.getElementById('main-m-curve').setAttribute('d', momentHeadRight
         ? `M${mainLoadPx-30} 38 C${mainLoadPx-30} 16 ${mainLoadPx+30} 16 ${mainLoadPx+30} 38`
         : `M${mainLoadPx+30} 38 C${mainLoadPx+30} 16 ${mainLoadPx-30} 16 ${mainLoadPx-30} 38`);
-      document.getElementById('sketchM').setAttribute('x', mainFootCenter);
+      document.getElementById('sketchM').setAttribute('x', mainLoadPx);
       document.getElementById('sketchM').setAttribute('y', 10);
       document.getElementById('sketchM').setAttribute('text-anchor', 'middle');
-      // Orange horizontal lateral-load arrow applied at the left footing edge.
+      // Applied horizontal action points toward the governing compressed edge,
+      // consistently with the displayed moment rotation (not soil resistance).
       const hArrowY = mainTopY + Math.max(3, (mainBaseY-mainTopY)/2);
-      document.getElementById('main-h-arrow').setAttribute('x1', Math.max(8,mainFootX-55));
-      document.getElementById('main-h-arrow').setAttribute('x2', mainFootX-2);
-      document.getElementById('main-h-arrow').setAttribute('y1', hArrowY);
-      document.getElementById('main-h-arrow').setAttribute('y2', hArrowY);
-      document.getElementById('sketchH').setAttribute('x', Math.max(8,mainFootX-65));
-      document.getElementById('sketchH').setAttribute('y', Math.max(14, Math.min(hArrowY-13, mainGroundY-12)));
+      const mainHArrow = document.getElementById('main-h-arrow');
+      const mainHLabel = document.getElementById('sketchH');
+      const hFromLeft = momentHeadRight;
+      mainHArrow.setAttribute('x1', hFromLeft ? Math.max(8,mainFootX-55) : Math.min(630,mainFootRight+55));
+      mainHArrow.setAttribute('x2', hFromLeft ? mainFootX-2 : mainFootRight+2);
+      mainHArrow.setAttribute('y1', hArrowY);
+      mainHArrow.setAttribute('y2', hArrowY);
+      mainHLabel.setAttribute('x', hFromLeft ? Math.max(8,mainFootX-65) : Math.min(625,mainFootRight+8));
+      mainHLabel.setAttribute('y', Math.max(14, Math.min(hArrowY-13, mainGroundY-12)));
       // De is measured horizontally from the footing's right edge to the slope crest.
       const mainSlopeGap = Math.max(12, Math.min(100, De * 28));
       const slopeX = Math.max(mainFootRight + 12, Math.min(590, mainFootRight + mainSlopeGap));
