@@ -1255,18 +1255,19 @@
         : Math.max(0, c_prime) * A_prime + Math.max(0, V_star) * Math.tan(Math.max(0, baseInterfaceAngle) * Math.PI / 180);
       const baseSlidingResistance = Phi_S * baseSlidingResistanceRaw;
 
-      // Passive resistance mobilises the native soil against the footing thickness.
+      // Passive resistance mobilises native soil over the embedment depth Df (ground level to footing base).
       // Ground improvement/hardfill beneath the footing base does not contribute
       // to passive resistance: use native gamma, phi' and c'/Su, not weighted values.
       // Groundwater correction is applied to the native soil unit weight.
       const considerPassive = document.getElementById('considerPassiveResistance').checked;
-      const passiveDepth = Math.max(0, parseFloat(document.getElementById('t').value) || 0);
-      const depthToWaterBelowBase = Dw - Df;
+      const passiveDepth = Math.max(0, Df);
+      // Water depth Dw is measured from ground level, as is passiveDepth.
+      const depthToWaterBelowGround = Dw;
       let gammaPrimePassive = gamma;
-      if (depthToWaterBelowBase <= 0) {
+      if (depthToWaterBelowGround <= 0) {
         gammaPrimePassive = gamma_sub;
-      } else if (depthToWaterBelowBase < passiveDepth && passiveDepth > 0) {
-        gammaPrimePassive = (depthToWaterBelowBase * gamma + (passiveDepth - depthToWaterBelowBase) * gamma_sub) / passiveDepth;
+      } else if (depthToWaterBelowGround < passiveDepth && passiveDepth > 0) {
+        gammaPrimePassive = (depthToWaterBelowGround * gamma + (passiveDepth - depthToWaterBelowGround) * gamma_sub) / passiveDepth;
       }
       const Kp = Math.pow(Math.tan((45 + nativePhiDeg / 2) * Math.PI / 180), 2);
       // Use full diameter D for circular-footing passive sliding resistance,
