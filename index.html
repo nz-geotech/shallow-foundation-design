@@ -96,7 +96,41 @@
       #failure-cone-card svg { width: 181mm !important; max-width: 100% !important; height: auto !important; max-height: 145mm !important; }
       #failure-cone-card { break-after: page !important; page-break-after: always !important; }
     }
-  </style> 
+  
+/* Soil layer name doubles as the layer colour swatch and selector. */
+.layer-name-color-wrap{position:relative;display:flex;align-items:stretch;min-width:0;width:100%}
+.layer-name-color-wrap>input[type="text"]{width:100%;min-width:0;box-sizing:border-box;padding-right:29px;color:#18212f}
+.layer-color-toggle{position:absolute;right:2px;top:2px;bottom:2px;width:25px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(255,255,255,.78);border:1px solid #94a3b8;border-radius:3px;font-size:14px;color:#334155;overflow:hidden}
+.layer-color-toggle input[type="color"]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0}
+
+.layer-color-toggle{border:1px solid #94a3b8}
+.layer-palette{position:fixed;z-index:99999;width:360px;max-width:calc(100vw - 24px);padding:13px;background:#f8fafc;border:1px solid #94a3b8;border-radius:7px;box-shadow:0 12px 36px #0003;color:#172033;font:13px Arial,sans-serif}
+.layer-palette-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-weight:600}
+.layer-palette-head button{border:0;background:transparent;font-size:20px;cursor:pointer}
+.layer-palette-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;margin:8px 0 14px}
+.layer-palette-grid button{height:22px;border:1px solid #a1a1aa;cursor:pointer;border-radius:2px}
+.layer-palette-grid button:hover,.layer-palette-grid button:focus{outline:2px solid #2563eb;outline-offset:1px}
+.layer-palette-controls{display:flex;align-items:center;gap:8px;margin-top:8px}
+.layer-palette-controls input[type=color]{width:44px;height:32px;padding:1px;cursor:pointer}
+.layer-palette-controls input[type=text]{width:95px;padding:6px;text-align:left}
+.layer-palette-controls button{padding:6px 10px;cursor:pointer}
+.layer-palette-saturation{margin:12px 0 6px}
+.layer-palette-saturation label{display:flex;justify-content:space-between;margin-bottom:5px}
+.layer-palette-saturation input{width:100%;accent-color:#2563eb;cursor:pointer}
+.layer-palette-preview{height:26px;border:1px solid #94a3b8;border-radius:3px;margin:8px 0}
+
+.layer-palette-custom-grid{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:5px;margin:7px 0 12px}
+.layer-palette-custom-grid button{height:26px;min-width:0;border:1px dashed #94a3b8;border-radius:3px;background:linear-gradient(135deg,#fff 45%,#e2e8f0 45%);cursor:pointer}
+.layer-palette-custom-grid button[data-filled="true"]{border:1px solid #64748b}
+.layer-palette-custom-grid button:focus{outline:2px solid #2563eb}
+.layer-palette-rgb{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0}
+.layer-palette-rgb label{display:flex;flex-direction:column;gap:3px;text-align:center}
+.layer-palette-rgb input{width:100%;box-sizing:border-box;padding:5px;border:1px solid #94a3b8;border-radius:3px}
+.layer-palette-note{font-size:11px;color:#475569;margin:5px 0}
+.layer-palette-actions{display:flex;gap:8px;margin-top:8px}
+.layer-palette-actions button{padding:6px 9px;cursor:pointer}
+@media print{.layer-palette{display:none!important}}
+</style> 
 <style>
 .methodology-appendix { margin-top:36px; }
 .reference-page { margin:16px auto; max-width:820px; }
@@ -203,7 +237,18 @@
 #bearing-breakdown-v108 .bc-v108-caption{font-size:12px;color:#586b7e}
 @media(max-width:700px){#bearing-breakdown-v108 .bc-v108-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}#bearing-breakdown-v108 .bc-v108-columns{grid-template-columns:1fr}}
 @media print{#bearing-breakdown-v108 .bc-v108-flow{max-height:235mm;object-fit:contain}#bearing-breakdown-v108 .bc-v108-metrics>div{break-inside:avoid}}
-</style></head> 
+</style><style id="v165-ground-layer-actions-layout">
+/* Reserve adequate width for all four layer controls without horizontal clipping. */
+.ground-layer-table th:first-child,.ground-layer-table td:first-child{width:18%!important}
+.ground-layer-table th:not(:first-child):not(:last-child),.ground-layer-table td:not(:first-child):not(:last-child){width:8.5%!important}
+.ground-layer-table th:last-child,.ground-layer-table td:last-child{width:14%!important;overflow:visible!important}
+.ground-layer-table td:last-child{white-space:normal!important;text-align:center}
+.ground-layer-table td:last-child .layer-action-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;width:100%}
+.ground-layer-table td:last-child .layer-action-grid button{display:block;min-width:0;width:100%;padding:4px 0!important;margin:0!important;font-size:12px;line-height:1.3}
+@media(max-width:650px){.ground-layer-table td:last-child .layer-action-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media print{.ground-layer-table th:last-child,.ground-layer-table td:last-child{display:none!important}}
+</style>
+</head> 
 <body> 
 
   <!-- Print Control Bar --> 
@@ -241,7 +286,7 @@
  <h2>1.0 Ground Profile</h2>
  <div id="ground-geometry-fields" class="ground-geometry-grid"></div>
  <div class="form-group" style="margin-top:14px"><label for="layerMode">Calculation soil layer:</label><select id="layerMode" onchange="recalculateGroundModel()"><option value="single">Single layer below foundation base</option><option value="multiple">Multiple layers — weighted within Hw</option></select></div>
- <div class="ground-layer-table"><table><thead><tr><th>Layer</th><th>Thickness (m)</th><th>γ (kN/m³)</th><th>c′ (kPa)</th><th>φ′ (°)</th><th>δ (°)</th><th>Su (kPa)</th><th>E (MPa)</th><th>ν</th><th class="no-print">Action</th></tr></thead><tbody id="ground-layer-rows"></tbody></table></div>
+ <div class="ground-layer-table"><table><thead><tr><th>Layer</th><th>Thickness (m)</th><th>γ (kN/m³)</th><th>c′ (kPa)</th><th>φ′ (°)</th><th>δ (°)</th><th>Su (kPa)</th><th>E (MPa)</th><th>ν</th><th class="no-print">Actions (+ / ↑ / ↓ / ×)</th></tr></thead><tbody id="ground-layer-rows"></tbody></table></div>
  <button type="button" class="tab-button no-print" id="add-ground-layer-button" style="flex:none;margin:10px 0">+ Add soil layer</button>
  <div id="ground-model-warning" class="case-note" style="display:none;background:#fff7ed;border-color:#d97706"></div>
 
@@ -1992,17 +2037,210 @@
         if(el){el.addEventListener('input',recalculateGroundModel);el.addEventListener('change',recalculateGroundModel);}
       });
     }
+    const groundLayerPalette=['#e9d6b8','#d2e4da','#e0d9f0','#f6ddcb','#d4e4f1'];
+    function groundLayerColor(layer,index){
+      return /^#[0-9a-f]{6}$/i.test(layer.color||'')?layer.color:groundLayerPalette[index%groundLayerPalette.length];
+    }
+    function updateGroundLayerColor(index,color){
+      if(!groundLayers[index] || !/^#[0-9a-f]{6}$/i.test(color))return;
+      groundLayers[index].color=color;
+      const name=document.querySelector('#ground-layer-rows [data-ground-index="'+index+'"][data-ground-key="name"]');
+      if(name)name.style.backgroundColor=color;
+      try{recalculateGroundModel()}catch(err){console.error(err)}
+    }
+    function groundLayerTemplate(){
+      return {name:'Layer '+(groundLayers.length+1),t:2,gamma:18,c:0,phi:30,delta:25,su:0,E:20,nu:0.3};
+    }
+    function syncGroundLayerInputs(){
+      // Capture edits before moving or inserting a layer, even if a field has not blurred.
+      document.querySelectorAll('#ground-layer-rows [data-ground-index]').forEach(el=>{
+        const i=Number(el.dataset.groundIndex),k=el.dataset.groundKey;
+        if(groundLayers[i])groundLayers[i][k]=k==='name'?el.value:(el.value===''?0:Number(el.value));
+      });
+    }
+    function refreshGroundLayers(){
+      renderGroundLayers();
+      try{recalculateGroundModel()}catch(err){console.error('Ground model recalculation:',err)}
+    }
     function renderGroundLayers(){
       const keys=['name','t','gamma','c','phi','delta','su','E','nu'];
-      document.getElementById('ground-layer-rows').innerHTML=groundLayers.map((layer,i)=>'<tr>'+keys.map(k=>'<td><input '+(k==='name'?'type="text"':'type="number" step="0.01"')+' data-ground-index="'+i+'" data-ground-key="'+k+'" value="'+String(layer[k]??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')+'"></td>').join('')+'<td class="no-print"><button type="button" onclick="removeGroundLayer('+i+')" '+(groundLayers.length===1?'disabled':'')+'>×</button></td></tr>').join('');
+      document.getElementById('ground-layer-rows').innerHTML=groundLayers.map((layer,i)=>'<tr>'+keys.map(k=>{
+        const value=String(layer[k]??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+        if(k==='name'){
+          const color=groundLayerColor(layer,i);
+          return '<td><div class="layer-name-color-wrap"><input type="text" style="background-color:'+color+'" data-ground-index="'+i+'" data-ground-key="name" value="'+value+'" aria-label="Layer name"><button type="button" class="layer-color-toggle" title="Choose layer colour" aria-label="Choose layer colour" onclick="openGroundLayerPalette('+i+',event)">▾</button></div></td>';
+        }
+        return '<td><input type="number" step="0.01" data-ground-index="'+i+'" data-ground-key="'+k+'" value="'+value+'"></td>';
+      }).join('')+'<td class="no-print"><div class="layer-action-grid"><button type="button" title="Insert layer above" aria-label="Insert layer above" onclick="insertGroundLayer('+i+')">＋</button> <button type="button" title="Move layer up" aria-label="Move layer up" onclick="moveGroundLayer('+i+',-1)" '+(i===0?'disabled':'')+'>↑</button> <button type="button" title="Move layer down" aria-label="Move layer down" onclick="moveGroundLayer('+i+',1)" '+(i===groundLayers.length-1?'disabled':'')+'>↓</button> <button type="button" title="Delete layer" aria-label="Delete layer" onclick="removeGroundLayer('+i+')" '+(groundLayers.length===1?'disabled':'')+'>×</button></div></td></tr>').join('');
       document.querySelectorAll('[data-ground-index]').forEach(el=>el.addEventListener('change',()=>{const i=+el.dataset.groundIndex,k=el.dataset.groundKey;groundLayers[i][k]=k==='name'?el.value:Number(Number(el.value).toFixed(2));if(k!=='name')el.value=Number(groundLayers[i][k]).toFixed(2);try{recalculateGroundModel()}catch(err){console.error(err)}}));
     }
-    function addGroundLayer(){
-      groundLayers.push({name:'Layer '+(groundLayers.length+1),t:2,gamma:18,c:0,phi:30,delta:25,su:0,E:20,nu:0.3});
-      renderGroundLayers();
-      try { recalculateGroundModel(); } catch(err) { console.error('Ground model recalculation:',err); }
+
+    const groundLayerPaletteColors=[
+      '#ffffff','#000000','#808080','#c0c0c0','#800000','#ff0000','#ff8080','#ffa500','#ffff00','#ffff99',
+      '#808000','#008000','#00ff00','#99ff99','#008080','#00ffff','#99ffff','#000080','#0000ff','#9999ff',
+      '#800080','#ff00ff','#ff99ff','#a52a2a','#d2b48c','#f5deb3','#d3d3d3','#e2e8f0','#cbd5e1','#94a3b8',
+      '#fef3c7','#fde68a','#fdba74','#fecaca','#fbcfe8','#ddd6fe','#bfdbfe','#bae6fd','#a7f3d0','#bbf7d0',
+      '#fef9c3','#fed7aa','#fca5a5','#f9a8d4','#c4b5fd','#93c5fd','#67e8f9','#6ee7b7','#86efac','#d9f99d'
+    ];
+
+    const groundCustomPaletteKey='shallow-foundation-ground-custom-colours-v1';
+    let groundCustomPaletteColors=Array(10).fill(null);
+    try{
+      const saved=JSON.parse(localStorage.getItem(groundCustomPaletteKey)||'[]');
+      if(Array.isArray(saved))groundCustomPaletteColors=Array.from({length:10},(_,i)=>/^#[0-9a-f]{6}$/i.test(saved[i]||'')?saved[i]:null);
+    }catch(e){}
+    function saveGroundCustomPalette(){
+      try{localStorage.setItem(groundCustomPaletteKey,JSON.stringify(groundCustomPaletteColors))}catch(e){}
     }
-    function removeGroundLayer(i){if(groundLayers.length>1){groundLayers.splice(i,1);renderGroundLayers();recalculateGroundModel()}}
+    function groundRgbToHex(r,g,b){
+      return '#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(Number(v)||0))).toString(16).padStart(2,'0')).join('');
+    }
+    let groundPaletteLayerIndex=-1;
+    function closeGroundLayerPalette(){
+      const p=document.getElementById('ground-layer-palette');
+      if(p)p.remove();
+      groundPaletteLayerIndex=-1;
+    }
+    function applyGroundPaletteColor(color){
+      if(!/^#[0-9a-fA-F]{6}$/.test(color)||!groundLayers[groundPaletteLayerIndex])return;
+      updateGroundLayerColor(groundPaletteLayerIndex,color);
+      closeGroundLayerPalette();
+    }
+    function layerHexToHsl(hex){
+      const rgb=[1,3,5].map(n=>parseInt(hex.slice(n,n+2),16)/255);
+      const max=Math.max(...rgb),min=Math.min(...rgb),d=max-min;
+      let h=0,s=0,l=(max+min)/2;
+      if(d){
+        s=d/(1-Math.abs(2*l-1));
+        if(max===rgb[0])h=((rgb[1]-rgb[2])/d)%6;
+        else if(max===rgb[1])h=(rgb[2]-rgb[0])/d+2;
+        else h=(rgb[0]-rgb[1])/d+4;
+        h=(h*60+360)%360;
+      }
+      return {h,s,l};
+    }
+    function layerHslToHex(h,s,l){
+      const a=s*Math.min(l,1-l);
+      const f=n=>{
+        const k=(n+h/30)%12;
+        return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1)))).toString(16).padStart(2,'0');
+      };
+      return '#'+f(0)+f(8)+f(4);
+    }
+    function openGroundLayerPalette(i,event){
+      if(event)event.stopPropagation();
+      if(groundPaletteLayerIndex===i&&document.getElementById('ground-layer-palette')){closeGroundLayerPalette();return;}
+      closeGroundLayerPalette();
+      groundPaletteLayerIndex=i;
+      const current=groundLayerColor(groundLayers[i],i);
+      const p=document.createElement('div');
+      p.id='ground-layer-palette';
+      p.className='layer-palette no-print';
+      p.setAttribute('role','dialog');
+      p.setAttribute('aria-label','Choose soil layer colour');
+      p.innerHTML='<div class="layer-palette-head"><span>Layer colour — '+String(groundLayers[i].name||'Layer').replace(/[<>&"]/g,'')+'</span><button type="button" aria-label="Close colour palette" id="layer-palette-close">×</button></div>'+
+        '<div>Basic colours (50)</div><div class="layer-palette-grid">'+groundLayerPaletteColors.map(c=>'<button type="button" data-palette-color="'+c+'" style="background:'+c+'" title="'+c+'" aria-label="Select '+c+'"></button>').join('')+'</div>'+
+        '<div>Custom colours (10 saved slots)</div><div class="layer-palette-custom-grid" id="layer-palette-custom-grid"></div>'+
+        '<div class="layer-palette-note">Select a saved swatch to reuse it, or save the current colour into a slot.</div>'+
+        '<div class="layer-palette-saturation"><label for="layer-palette-saturation"><span>Colour saturation</span><span id="layer-palette-sat-value">100%</span></label><input type="range" id="layer-palette-saturation" min="0" max="100" step="1" value="100"></div>'+
+        '<div class="layer-palette-preview" id="layer-palette-preview" aria-label="Selected colour preview"></div>'+
+        '<div>RGB colour (0–255)</div><div class="layer-palette-rgb">'+['R','G','B'].map(k=>'<label>'+k+'<input type="number" id="layer-palette-rgb-'+k+'" min="0" max="255" step="1" aria-label="'+k+' channel"></label>').join('')+'</div>'+
+        '<div>Custom colour / HEX</div><div class="layer-palette-controls"><input type="color" id="layer-palette-native" value="'+current+'" aria-label="Choose custom colour"><input type="text" id="layer-palette-hex" value="'+current+'" maxlength="7" aria-label="Hex colour"><button type="button" id="layer-palette-apply">Apply to layer</button></div>'+
+        '<div class="layer-palette-actions"><button type="button" id="layer-palette-save-custom">Save to custom slot</button><button type="button" id="layer-palette-clear-custom">Clear selected slot</button></div>';
+      document.body.appendChild(p);
+      const r=event&&event.currentTarget?event.currentTarget.getBoundingClientRect():{left:20,bottom:40,top:20};
+      p.style.left=Math.max(12,Math.min(r.left,window.innerWidth-p.offsetWidth-12))+'px';
+      p.style.top=(r.bottom+p.offsetHeight+8<window.innerHeight?r.bottom+5:Math.max(12,r.top-p.offsetHeight-5))+'px';
+      p.style.maxHeight='calc(100vh - 24px)';
+      p.style.overflowY='auto';
+      const native=p.querySelector('#layer-palette-native'),hex=p.querySelector('#layer-palette-hex');
+      const slider=p.querySelector('#layer-palette-saturation');
+      const satLabel=p.querySelector('#layer-palette-sat-value');
+      const preview=p.querySelector('#layer-palette-preview');
+      const rgb=['R','G','B'].map(k=>p.querySelector('#layer-palette-rgb-'+k));
+      const customGrid=p.querySelector('#layer-palette-custom-grid');
+      let baseHsl=layerHexToHsl(current);
+      let baseSaturation=baseHsl.s;
+      let selectedSlot=-1;
+      function renderCustom(){
+        customGrid.innerHTML=groundCustomPaletteColors.map((c,j)=>'<button type="button" data-custom-index="'+j+'" data-filled="'+Boolean(c)+'" style="'+(c?'background:'+c+';':'')+'" title="Custom colour '+(j+1)+(c?': '+c:' (empty)')+'" aria-label="Custom colour '+(j+1)+'"></button>').join('');
+        customGrid.querySelectorAll('button').forEach(b=>{
+          const j=Number(b.dataset.customIndex);
+          if(j===selectedSlot)b.style.outline='2px solid #2563eb';
+          b.onclick=()=>{selectedSlot=j;if(groundCustomPaletteColors[j])setSelected(groundCustomPaletteColors[j]);renderCustom();};
+        });
+      }
+      function setSelected(color){
+        if(!/^#[0-9a-fA-F]{6}$/.test(color))return;
+        color=color.toLowerCase();
+        baseHsl=layerHexToHsl(color);
+        baseSaturation=baseHsl.s;
+        slider.value=100;
+        satLabel.textContent='100%';
+        updateColorFields(color);
+      }
+      function updateColorFields(color){
+        native.value=color;
+        hex.value=color;
+        preview.style.backgroundColor=color;
+        rgb.forEach((el,j)=>{el.value=parseInt(color.slice(1+j*2,3+j*2),16)});
+      }
+      function updateSaturation(){
+        const percent=Number(slider.value);
+        const color=layerHslToHex(baseHsl.h,baseSaturation*percent/100,baseHsl.l);
+        satLabel.textContent=percent+'%';
+        updateColorFields(color);
+      }
+      p.querySelectorAll('[data-palette-color]').forEach(b=>b.addEventListener('click',()=>setSelected(b.dataset.paletteColor)));
+      p.querySelector('#layer-palette-close').onclick=closeGroundLayerPalette;
+      native.addEventListener('input',()=>setSelected(native.value));
+      hex.addEventListener('change',()=>{if(/^#[0-9a-fA-F]{6}$/.test(hex.value))setSelected(hex.value)});
+      rgb.forEach(el=>el.addEventListener('input',()=>{
+        if(rgb.some(x=>x.value===''||!Number.isFinite(Number(x.value))))return;
+        const vals=rgb.map(x=>Math.max(0,Math.min(255,Math.round(Number(x.value)))));
+        const color=groundRgbToHex(...vals);
+        baseHsl=layerHexToHsl(color);baseSaturation=baseHsl.s;
+        slider.value=100;satLabel.textContent='100%';
+        native.value=color;hex.value=color;preview.style.backgroundColor=color;
+      }));
+      rgb.forEach(el=>el.addEventListener('change',()=>{const color=groundRgbToHex(...rgb.map(x=>x.value));setSelected(color)}));
+      slider.addEventListener('input',updateSaturation);
+      p.querySelector('#layer-palette-apply').onclick=()=>applyGroundPaletteColor(hex.value);
+      hex.addEventListener('keydown',e=>{if(e.key==='Enter'&&/^#[0-9a-fA-F]{6}$/.test(hex.value))applyGroundPaletteColor(hex.value)});
+      p.querySelector('#layer-palette-save-custom').onclick=()=>{
+        const j=selectedSlot>=0?selectedSlot:groundCustomPaletteColors.findIndex(c=>!c);
+        if(j<0){alert('All 10 custom slots are filled. Select a slot to replace its colour.');return;}
+        groundCustomPaletteColors[j]=hex.value.toLowerCase();selectedSlot=j;
+        saveGroundCustomPalette();renderCustom();
+      };
+      p.querySelector('#layer-palette-clear-custom').onclick=()=>{
+        if(selectedSlot<0)return;
+        groundCustomPaletteColors[selectedSlot]=null;
+        saveGroundCustomPalette();renderCustom();
+      };
+      setSelected(current);renderCustom();
+    }
+    document.addEventListener('click',e=>{const p=document.getElementById('ground-layer-palette');if(p&&!p.contains(e.target)&&!e.target.closest('.layer-color-toggle'))closeGroundLayerPalette()});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape')closeGroundLayerPalette()});
+    function insertGroundLayer(i){
+      syncGroundLayerInputs();
+      groundLayers.splice(i,0,groundLayerTemplate());
+      refreshGroundLayers();
+    }
+    function moveGroundLayer(i,direction){
+      const j=i+direction;
+      if(j<0||j>=groundLayers.length)return;
+      syncGroundLayerInputs();
+      [groundLayers[i],groundLayers[j]]=[groundLayers[j],groundLayers[i]];
+      refreshGroundLayers();
+    }
+    function addGroundLayer(){insertGroundLayer(groundLayers.length)}
+    function removeGroundLayer(i){
+      if(groundLayers.length<=1)return;
+      syncGroundLayerInputs();
+      groundLayers.splice(i,1);
+      refreshGroundLayers();
+    }
     function groundLayerAt(z){let top=0;for(let i=0;i<groundLayers.length;i++){const bottom=top+Math.max(0,+groundLayers[i].t||0);if(i===groundLayers.length-1||z<bottom)return groundLayers[i];top=bottom}return groundLayers.at(-1)}
     function weightedGround(effectiveWidth){
       // Solve Hw and thickness-weighted phi together for the active B-prime.
@@ -2067,7 +2305,6 @@
     }
     function drawSoilLayersInLoadSketches(){
       if(!groundModelReady || !Array.isArray(groundLayers))return;
-      const palette=['#e9d6b8','#d2e4da','#e0d9f0','#f6ddcb','#d4e4f1'];
       const escapeText=value=>String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       // Both load-case sketches have their own existing vertical geometry scales.
       // Match those scales exactly: Foundation = 25 px/m; Failure mechanism = 45 px/m.
@@ -2088,7 +2325,7 @@
           const visibleBottom=Math.min(maxDepth,bottom);
           if(visibleBottom>visibleTop){
             const y1=py(visibleTop),y2=py(visibleBottom);
-            content+='<rect x="0" y="'+y1.toFixed(2)+'" width="'+spec.width+'" height="'+(y2-y1).toFixed(2)+'" fill="'+palette[i%palette.length]+'" opacity="0.70"/>';
+            content+='<rect x="0" y="'+y1.toFixed(2)+'" width="'+spec.width+'" height="'+(y2-y1).toFixed(2)+'" fill="'+groundLayerColor(layer,i)+'" opacity="0.70"/>';
             if(bottom<maxDepth)content+='<path d="M0 '+y2.toFixed(2)+'H'+spec.width+'" stroke="#94a3b8" stroke-width="1"/>';
             if(y2-y1>13){
               let nameY=y1+Math.min(18,Math.max(11,(y2-y1)/2+4));
@@ -2114,19 +2351,24 @@
       // A footing whose thickness equals embedment is flush with existing ground level.
       // Its underside is at Df and its top is at Df-t.
       const maxProfileDepth=groundLayers.slice(0,-1).reduce((v,l)=>v+Math.max(0,+l.t||0),0);
-      const depth=Math.max(2,Df+a.Hw*1.3,Dw*1.1,Math.min(maxProfileDepth,Df+a.Hw*2));
+      // Display the actual entered stratigraphy regardless of the calculation mode.
+      // Fit every finite layer boundary, plus some of the last (continuing) layer.
+      const finiteBoundaryDepth=maxProfileDepth;
+      const depth=Math.max(2,Df+a.Hw*1.3,finiteBoundaryDepth+Math.max(0.5,Math.min(2,groundLayers.length?Number(groundLayers[groundLayers.length-1].t)||1:1)),Dw>0?Dw*1.05:0);
       const groundY=Math.max(65,25+t/depth*315);
       const y=z=>groundY+z/depth*(400-groundY);
       const scale=350/Math.max(B*2.3,1),width=Math.min(330,B*scale),left=380-width/2;
-      const colors=['#e9d6b8','#d2e4da','#e0d9f0','#f6ddcb','#d4e4f1'];
+      
       const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       let top=0,html='<rect width="760" height="420" fill="#fff"/>';
       groundLayers.forEach((l,i)=>{
         const bottom=i===groundLayers.length-1?depth:Math.min(depth,top+Math.max(0,+l.t||0));
         if(bottom>top){
-          html+='<rect x="35" y="'+y(top)+'" width="690" height="'+(y(bottom)-y(top))+'" fill="'+colors[i%colors.length]+'"/>';
-          const labelY=Math.min(y(bottom)-4,y(top)+Math.max(16,(y(bottom)-y(top))/2));
-          if(y(bottom)-y(top)>14)html+='<text x="45" y="'+labelY+'" font-size="12" fill="#334155">'+esc(l.name)+'</text>';
+          html+='<rect x="35" y="'+y(top)+'" width="690" height="'+(y(bottom)-y(top))+'" fill="'+groundLayerColor(l,i)+'"/>';
+          const labelY=Math.min(y(bottom)-4,y(top)+Math.max(13,(y(bottom)-y(top))/2));
+          if(y(bottom)-y(top)>12)html+='<text x="45" y="'+labelY+'" font-size="12" font-weight="600" fill="#334155">'+esc(l.name)+'</text>';
+          // Show the actual depth to each finite interface, measured from ground level.
+          if(i<groundLayers.length-1 && y(bottom)<402)html+='<text x="717" y="'+Math.max(groundY+11,y(bottom)-5)+'" text-anchor="end" font-size="11" fill="#475569">'+bottom.toFixed(2)+' m bgl</text>';
           html+='<path d="M35 '+y(bottom)+'H725" stroke="#94a3b8" stroke-width="1"/>';
           top=bottom;
         }
@@ -2158,7 +2400,7 @@
       html+='<text x="'+(left-25)+'" y="'+Math.max(64,(groundY+fy)/2)+'" text-anchor="end" font-size="12" fill="#334155">Df = '+Df.toFixed(2)+' m</text>';
       html+='<text x="'+(left+width+8)+'" y="'+Math.max(18,Math.min(407,(fTop+fy)/2))+'" font-size="12" fill="#334155">t = '+t.toFixed(2)+' m</text>';
       
-      html+='<text x="390" y="25" font-size="14" fill="#334155">'+(a.multi?'Multiple layers':'Single layer')+' · '+esc(footingType||'foundation')+'</text>';
+      html+='<text x="390" y="25" font-size="14" fill="#334155">Ground stratigraphy ('+groundLayers.length+' layer'+(groundLayers.length===1?'':'s')+') · '+esc(footingType||'foundation')+'</text>';
       svg.innerHTML=html;
     }
     function showGroundModel(){document.getElementById('ground-model-card').scrollIntoView({behavior:'smooth',block:'start'})}
